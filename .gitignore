@@ -107,4 +107,4 @@ venv.bak/
 /build/
 
 # Pycharm
-.idea/
+*.idea/
