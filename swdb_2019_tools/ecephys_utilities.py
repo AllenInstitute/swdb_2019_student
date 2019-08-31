@@ -15,7 +15,7 @@ def spike_times_to_dataframe(spike_times):
     pandas.DataFrame :
         Index is unit ids, "spike_times" column contain arrays of spike times for each unit
 
-    Usage
+    Example
     =====
     >>> spike_times_to_dataframe({100: [10, 11, 12], 200: [12, 13, 14, 15]})
                 spike_times
