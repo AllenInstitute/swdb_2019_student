@@ -24,6 +24,10 @@ from swdb_2019_tools import file_io
     pd.DataFrame({
         "a": [np.arange(25).reshape((5, 5)), np.eye(5, dtype=int)],
     }),
+    pd.DataFrame({
+        "a": [[1, 2, 3], [], [4, 5, 6]],
+        "b": [1, 2, 3],
+    })
 ])
 def test_write_df_with_array_columns(tmpdir_factory, df):
 

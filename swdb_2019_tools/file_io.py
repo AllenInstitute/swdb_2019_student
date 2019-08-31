@@ -15,11 +15,19 @@ def write_df_with_array_columns(df, path, non_array_key="non_array", **kwargs):
     non_array_key : str, optional
         special key within the .h5 file that denotes all non-array columns
 
+    Example
+    =======
+    table = pd.DataFrame({
+        "a": [[1, 2, 3], [], [4, 5, 6]],
+        "b": [1, 2, 3],
+    })
+    write_df_with_array_columns(table, "/some/file/path/data.h5")
+
     """
 
     array_columns = [
         colname for colname in df.columns 
-        if isinstance(df[colname].values[0], np.ndarray)
+        if isinstance(df[colname].values[0], (np.ndarray, list))
     ]
 
     array_df = df.loc[:, array_columns]
@@ -58,6 +66,10 @@ def read_df_with_array_columns(path, non_array_key="non_array"):
     =======
     pandas.DataFrame : 
         obtained table
+
+    Example
+    =======
+    table = read_df_with_array_columns("/some/file/path/data.h5")
 
     """
 
