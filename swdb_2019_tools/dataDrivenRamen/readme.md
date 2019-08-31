@@ -42,6 +42,24 @@
 ```
 ## How to Prepare Ramen
 
+**Development Version**
+
+**Editable Version**
+
+If you don't want have to add daRamen to your path at the top of every jupyter notebook then you will want to install 
+it using the following steps:
+
+`conda activate [your preferred virtual environment (python3)]` 
+
+`cd [your home directory]/swdb_2019_tools/dataDrivenRamen/` 
+
+`$ pip install -e .`
+
+It is recommended that if you are using conda virtual environments, to first activate the specific environment you will be developing contributions on prior to running the above line
+
+
+## Kitchen Rules
+
 1. Code & Style
     * All code should be written in Python 3.4+
     * Code should follow the [PEP8](https://www.python.org/dev/peps/pep-0008/) style guide
