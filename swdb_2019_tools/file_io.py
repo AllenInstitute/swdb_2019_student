@@ -4,6 +4,19 @@ import pandas as pd
 
 
 def write_df_with_array_columns(df, path, non_array_key="non_array", **kwargs):
+    """ Write a table with ragged array columns to an h5 file
+
+    Parameters
+    ==========
+    df : pandas.DataFrame
+        table to be written
+    path : str
+        path to a writeable h5 file
+    non_array_key : str, optional
+        special key within the .h5 file that denotes all non-array columns
+
+    """
+
     array_columns = [
         colname for colname in df.columns 
         if isinstance(df[colname].values[0], np.ndarray)
@@ -32,6 +45,21 @@ def write_df_with_array_columns(df, path, non_array_key="non_array", **kwargs):
 
 
 def read_df_with_array_columns(path, non_array_key="non_array"):
+    """ Read an h5 representation of a table with ragged array columns
+
+    Parameters
+    ==========
+    path : str
+        Path to a .h5 file that will be read
+    non_array_key : str, optional
+        special key within the .h5 file that denotes all non-array columns
+
+    Returns
+    =======
+    pandas.DataFrame : 
+        obtained table
+
+    """
 
     arr_cols = {}
 
