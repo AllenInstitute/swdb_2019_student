@@ -17,7 +17,7 @@ def cell_df_to_median_polar(cell_df):
         result.append((index, row['magnitude']))
     return result
 
-def get_mock_polardata(brain_area, depth, celltype):
+def get_mock_polardata(experiment_id, cell_specimen_id):
   """
   Generate mock polar plot data
   """
