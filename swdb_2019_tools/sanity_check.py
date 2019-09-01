@@ -23,25 +23,31 @@ def sanity_check(mat,xname='x-axis(unknown units)',yname = 'y-axis(unknown units
     """
     import matplotlib
     import matplotlib.pyplot as plt
-    
+    import numpy as np
+
     N = mat.shape
-    
     print(['the size of your matrix is' + str(N)])
-    if N[2]%ncols == 0:
-        nrows =(N[2]//ncols)
+    if len(N)==2:
+        plt.imshow(mat,aspect='auto')
+        plt.colorbar()
+        plt.xlabel(xname)
+        plt.ylabel(yname)
+        plt.title(zname)
     else:
-        nrows = (N[2]//ncols)+1
-       
-    # plot each trial in a subplot
-    fig,axes = plt.subplots(nrows,ncols, figsize=(18,nrows*4), sharex=True, sharey=True)
-    axes = axes.ravel()
-    axes = axes[range(N[2])]
-    for itrial,ax in enumerate(axes):
-        ploti = ax.imshow(mat[:,:,itrial],aspect='auto')
-        plt.colorbar(ploti,ax=ax)
-        ax.set_xlabel(xname)
-        ax.set_ylabel(yname)
-        ax.set_title(zname + ' ' + str(itrial))
-    
-    plt.suptitle(title)
+        if N[2]%ncols == 0:
+            nrows =(N[2]//ncols)
+        else:
+            nrows = (N[2]//ncols)+1
+        # plot each trial in a subplot
+        fig,axes = plt.subplots(nrows,ncols, figsize=(18,nrows*4), sharex=True, sharey=True)
+        axes = axes.ravel()
+        axes = axes[range(N[2])]
+        for itrial,ax in enumerate(axes):
+            ploti = ax.imshow(mat[:,:,itrial],aspect='auto')
+            plt.colorbar(ploti,ax=ax)
+            ax.set_xlabel(xname)
+            ax.set_ylabel(yname)
+            ax.set_title(zname + ' ' + str(itrial))
+
+        plt.suptitle(title)
     return 
