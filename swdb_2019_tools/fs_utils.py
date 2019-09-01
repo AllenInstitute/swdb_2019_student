@@ -27,7 +27,7 @@ def fs_rsu_split(units_to_split,cutoff,return_hist=False):
     >>> rsu_cells, fs_cells = fs_rsu_split(some_units,0.4,return_hist=True)
     '''
     
-    if allunits.columns.contains('duration') == True:
+    if units_to_split.columns.contains('duration') == True:
         if return_hist == True:
             plt.hist(units_to_split.duration,bins=60)
             plt.xlim(0,2)
@@ -37,7 +37,7 @@ def fs_rsu_split(units_to_split,cutoff,return_hist=False):
         rsu_units = units_to_split[units_to_split.duration>cutoff]
         fs_units = units_to_split[units_to_split.duration<cutoff]
 
-    elif allunits.columns.contains('waveform_duration') == True:
+    elif units_to_split.columns.contains('waveform_duration') == True:
         if return_hist == True:
             plt.hist(units_to_split.waveform_duration,bins=60)
             plt.xlim(0,2)
