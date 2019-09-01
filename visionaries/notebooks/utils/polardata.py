@@ -2,6 +2,8 @@
 Useful functions for wrangling with polar data
 """
 
+import random
+
 def cell_df_to_median_polar(cell_df):
     """
     Input:
@@ -14,3 +16,18 @@ def cell_df_to_median_polar(cell_df):
     for index, row in grouped_df.iterrows():
         result.append((index, row['magnitude']))
     return result
+
+def get_mock_polardata(brain_area, depth, celltype):
+  """
+  Generate mock polar plot data
+  """
+
+  return [
+      (0, random.uniform(0, 1)),
+      (45, random.uniform(0, 1)),
+      (90, random.uniform(0, 1)),
+      (135, random.uniform(0, 1)),
+      (180, random.uniform(0, 1)),
+      (225, random.uniform(0, 1)),
+      (270, random.uniform(0, 1))
+  ]
