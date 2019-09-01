@@ -2,6 +2,8 @@
 Helpful functions for accessing data
 """
 import pandas as pd
+import allensdk.brain_observatory.stimulus_info as stim_info
+
 def get_dg_response_filter_from_saskia():
     """
     Returns a responsiveness df, with two cols:
@@ -18,3 +20,41 @@ def get_dg_response_filter_from_saskia():
     return data[['cell_specimen_id', 'responsive_dg']].rename(
         columns = {'responsive_dg': 'responsive'},
         inplace = False)
+
+def get_cells(boc, cells, brain_area, depth, cell_type, stimuli = [stim_info.DRIFTING_GRATINGS]):
+    """
+    Get cells that match the given selectors.
+    @param boc - BrainObservatoryCache
+    @param cells - DataFrame fetched like so: 
+        cells = boc.get_cell_specimens()
+        cells = pd.DataFrame.from_records(cells)
+    """
+    exps = boc.get_ophys_experiments(stimuli=stimuli,
+        targeted_structures = [brain_area],
+        imaging_depths = [depth],
+        cre_lines = [cell_type])
+    # Can't find [targeted_structure, cre_line] in cell table, so have to combine w/ exps.
+    exps_df = pd.DataFrame.from_dict(exps)
+    if len(exps_df)== 0:
+        return []
+    is_in_relevant_container_mask = False * len(cells)
+    for relevant_container_id in (exps_df.experiment_container_id.values):
+        is_in_relevant_container_mask |= (cells.experiment_container_id == relevant_container_id)
+    return cells[is_in_relevant_container_mask]
+
+def get_filtered_cells(cells, response_filter):
+    """
+    @param cells - DataFrame like 
+        cells = boc.get_cell_specimens()
+        cells = pd.DataFrame.from_records(cells)
+    @param response_filter - DataFrame with ['cell_speciment_id', 'responsive': bool]
+        E.g. get_dg_response_filter_from_saskia()
+    @return filtered cells_df, but just the responsive ones.
+    """
+    cells = cells.merge(
+            right=response_filter,
+            on = 'cell_specimen_id',
+            how ='left')
+    # The response column has some NaN values, replace them w/ False.
+    cells['responsive'].fillna(False, inplace=True)
+    return cells[cells['responsive']]
