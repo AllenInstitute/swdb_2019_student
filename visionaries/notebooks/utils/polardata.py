@@ -45,6 +45,33 @@ def get_median_polar(thetas, rs):
       median_r.append(np.median(rs))
   return median_theta, median_r
 
+def get_avg_polar(thetas, rs):
+  """
+  Given multiple polar data, get the average polar.
+  Input:
+  thetas[i] and rs[i] correspond to a single cell's polar data.
+  That is... cell i likes orientation thetas[i][j] with a magnitude of rs[i][j]
+  
+  Output:
+  the average polar data.
+  """
+  theta_to_rs = {}
+  for cell_i in range(len(thetas)):
+      cell_thetas = thetas[cell_i]
+      cell_rs = rs[cell_i]
+      for ori_i in range(len(cell_thetas)):    
+          theta = cell_thetas[ori_i]
+          r = cell_rs[ori_i]
+          if theta not in theta_to_rs:
+              theta_to_rs[theta] = []
+          theta_to_rs[theta].append(r)
+  avg_theta = []
+  avg_r = []
+  for theta, rs in theta_to_rs.items():
+      avg_theta.append(theta)
+      avg_r.append(np.mean(rs))
+  return avg_theta, avg_r
+
 def get_mock_polardata(experiment_id, cell_specimen_id):
   """
   Generate mock polar plot data
