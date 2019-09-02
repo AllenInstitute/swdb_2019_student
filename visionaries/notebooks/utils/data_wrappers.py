@@ -89,3 +89,11 @@ def get_avg_normalized_response(boc, session_id, cell_specimen_id, temporal_freq
     max_response = tf2_response['max_dff'].max()
     
     return mean_dff_ori['max_dff']/max_response
+
+def convert_polar_dict_to_arrays(polar_series):
+    thetas = []
+    rs = []
+    for theta, r in polar_series.iteritems():
+        thetas.append(theta)
+        rs.append(r)
+    return thetas, rs
