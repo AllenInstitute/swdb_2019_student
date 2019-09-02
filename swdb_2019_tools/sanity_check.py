@@ -27,13 +27,14 @@ def sanity_check(mat,xname='x-axis(unknown units)',yname = 'y-axis(unknown units
 
     N = mat.shape
     print(['the size of your matrix is' + str(N)])
+    
     if len(N)==2:
         plt.imshow(mat,aspect='auto')
         plt.colorbar()
         plt.xlabel(xname)
         plt.ylabel(yname)
         plt.title(zname)
-    else:
+    elif N[2]<100:
         if N[2]%ncols == 0:
             nrows =(N[2]//ncols)
         else:
@@ -50,4 +51,6 @@ def sanity_check(mat,xname='x-axis(unknown units)',yname = 'y-axis(unknown units
             ax.set_title(zname + ' ' + str(itrial))
 
         plt.suptitle(title)
+    else:
+        print(['sanity check: I cannot print ' + str(N[2])+ ' subplots']) 
     return 
