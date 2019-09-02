@@ -65,6 +65,8 @@ def get_avg_normalized_response(boc, session_id, cell_specimen_id, temporal_freq
     data_set = boc.get_ophys_experiment_data(session_id)
     
     timestamps, dff = data_set.get_dff_traces(cell_specimen_ids=[cell_specimen_id])
+    if len(dff) == 0:
+        return None
     dff_trace = dff[0,:]
     
     stim_table = data_set.get_stimulus_table('drifting_gratings')

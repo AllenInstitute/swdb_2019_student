@@ -35,9 +35,13 @@ def polar_plot(ax, theta, r, color='black', linewidth = 2):
     polar_plot(axes, theta3, r3, color='grey', linewidth=2)
     polar_plot(axes, theta, r, color='black', linewidth=4)
   """
+  idx = np.argsort(theta)
+  theta = np.array(theta)[idx]
+  r = np.array(r)[idx]
   # Need to re-add the first point so we have an enclosed polygon.
   theta = np.append(theta, theta[0])
   r = np.append(r, r[0])
+  theta = np.radians(theta)
   ax.plot(theta, r, color=color, ls='-', linewidth=linewidth)
 
   # Because default is 0 pointing to east, and we want 0 at north.
