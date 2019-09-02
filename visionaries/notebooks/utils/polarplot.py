@@ -64,6 +64,6 @@ def polar_plot_population(ax, bold_theta, bold_r, grey_thetas, grey_rs):
   You probably want to pass in sample populations that make up the average here so the viewer can get a sense
   of the distribution.
   """
-  polar_plot(ax, bold_theta, bold_r, color='black', linewidth=4)
   for i in range(len(grey_thetas)):
       polar_plot(ax, grey_thetas[i], grey_rs[i], color='grey', linewidth=2)
+  polar_plot(ax, bold_theta, bold_r, color='black', linewidth=4)
