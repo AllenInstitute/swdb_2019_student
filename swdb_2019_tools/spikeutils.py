@@ -84,8 +84,7 @@ def spiketimes_to_2D_rates(spiketimes_list,startime,stoptime,binsize,binarize=Fa
             #binarize the counts
             counts[counts>0] = 1
         spikewords_array[i,:] = counts
-    spikerates_2D = spikewords_array.astype(np.int)
-    return(spikerates_2D)
+    return(spikewords_array)
 
 def fs_rsu_split(units_to_split,cutoff,return_hist=False):
     ''' Accepts a pandas dataframe of units and splits units into fast-spiking and regular-spiking.
