@@ -83,6 +83,7 @@ def get_avg_normalized_response(boc, session_id, cell_specimen_id, temporal_freq
     tf2_response = cell_response[cell_response.temporal_frequency==temporal_frequency]
     
     mean_dff_ori = tf2_response.groupby('orientation').mean()
+    mean_dff_ori = mean_dff_ori.clip(lower=pd.Series({'mean_dff': 0.0}), axis=1)
     
     max_response = mean_dff_ori['mean_dff'].max()
     
