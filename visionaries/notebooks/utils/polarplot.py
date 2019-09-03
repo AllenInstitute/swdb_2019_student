@@ -60,6 +60,7 @@ def polar_plot(ax, theta, r, color='black', linewidth = 2):
   
   # rmax has to be set after plotting. See https://stackoverflow.com/questions/54653423/matplotlib-set-rmax-and-set-rticks-not-working
   ax.set_rmax(1.0)
+  ax.set_rmin(0)
 
 def polar_plot_population(ax, bold_theta, bold_r, grey_thetas, grey_rs):
   """
@@ -71,3 +72,7 @@ def polar_plot_population(ax, bold_theta, bold_r, grey_thetas, grey_rs):
   for i in range(len(grey_thetas)):
       polar_plot(ax, grey_thetas[i], grey_rs[i], color='grey', linewidth=2)
   polar_plot(ax, bold_theta, bold_r, color='black', linewidth=4)
+  # Add a dot in the middle to show origin
+  ax.scatter([0.0], [0.0], color='red', zorder=10)
+  ax.set_rmax(1.0)
+  ax.set_rmin(0)
