@@ -1,4 +1,4 @@
-def sanity_check(mat,xname='x-axis(unknown units)',yname = 'y-axis(unknown units)', zname = 'z-axis(unknown units)',title = 'Unknown matrix',ncols=5):
+def visualize_3Darray(mat,xname='x-axis(unknown units)',yname = 'y-axis(unknown units)', zname = 'z-axis(unknown units)',title = 'Unknown matrix',ncols=5):
     """given a numpy 3D array the function prints its size and a colorplot of each layer along the third dimension.
     This function could be used to visually inspect 3D matrices (e.g. plotting spike counts across trials and units)
     
