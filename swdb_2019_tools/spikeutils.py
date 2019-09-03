@@ -84,7 +84,7 @@ def spiketimes_to_2D_rates(spiketimes_list,startime,stoptime,binsize,binarize=Fa
             #binarize the counts
             counts[counts>0] = 1
         spikewords_array[i,:] = counts
-    spikerates_2D = spikewords_array.astype(np.int)
+    spikerates_2D = spikewords_array
     return(spikerates_2D)
 
 def fs_rsu_split(units_to_split,cutoff,return_hist=False):
