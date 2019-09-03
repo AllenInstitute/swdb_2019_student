@@ -12,7 +12,7 @@ from functools import partial
 def bad_scope(models, all_windows, all_tseries, all_thetas, indexes):
     index_x, index_y = indexes
     sel_models = models[[index_x, index_y]]
-    distance = likelihood_distance(sel_models, all_windows, all_tseries, all_thetas)  # Calculate Distances
+    distance = likelihood_distance(sel_models, all_windows, all_thetas, all_tseries)  # Calculate Distances
     return index_x, index_y, distance
 
 
@@ -45,7 +45,7 @@ def compute_dissimilarity_matrix(models, all_windows, all_tseries, all_thetas, n
     if n_jobs == 1:
         for index_x, index_y in zip(index_i, index_j):
             sel_models = models[[index_x, index_y]]
-            distance = likelihood_distance(sel_models, all_windows, all_tseries, all_thetas)  # Calculate Distances
+            distance = likelihood_distance(sel_models, all_windows, all_thetas, all_tseries)  # Calculate Distances
             dissimilarity_matrix[index_x, index_y] = distance  # Populate the Matrix
     else:
 
