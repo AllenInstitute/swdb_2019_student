@@ -46,10 +46,7 @@ def visualize_3Darray(mat,dimension = 2,dim0_label='dim 0',dim1_label = 'dim 1',
     else:
         yname = dim0_label
         xname = dim1_label
-        zname = dim2_label
-
-        N=np.transpose(N,)
-        
+        zname = dim2_label        
         
     N = mat.shape
     
