@@ -65,8 +65,6 @@ def get_avg_normalized_response(boc, session_id, cell_specimen_id, temporal_freq
     data_set = boc.get_ophys_experiment_data(session_id)
     
     timestamps, dff = data_set.get_dff_traces(cell_specimen_ids=[cell_specimen_id])
-    if len(dff) == 0:
-        return None
     dff_trace = dff[0,:]
     
     stim_table = data_set.get_stimulus_table('drifting_gratings')
@@ -77,7 +75,7 @@ def get_avg_normalized_response(boc, session_id, cell_specimen_id, temporal_freq
         new_row = {
             'orientation': stim_table.orientation[i],
             'temporal_frequency': stim_table.temporal_frequency[i],
-            'max_dff': dff_trace[stim_table.start[i]:stim_table.end[i]].max()
+            'mean_dff': dff_trace[stim_table.start[i]:stim_table.end[i]].mean()
         }
         rows.append(new_row)
 
@@ -86,9 +84,9 @@ def get_avg_normalized_response(boc, session_id, cell_specimen_id, temporal_freq
     
     mean_dff_ori = tf2_response.groupby('orientation').mean()
     
-    max_response = tf2_response['max_dff'].max()
+    max_response = mean_dff_ori['mean_dff'].max()
     
-    return mean_dff_ori['max_dff']/max_response
+    return mean_dff_ori['mean_dff']/max_response
 
 def convert_polar_dict_to_arrays(polar_series):
     thetas = []

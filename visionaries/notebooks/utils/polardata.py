@@ -86,3 +86,11 @@ def get_mock_polardata(experiment_id, cell_specimen_id):
       (225, random.uniform(0, 1)),
       (270, random.uniform(0, 1))
   ]
+
+def get_new_dsi(responses_df):
+    pref_dir = responses_df['mean_dff'].argmax()
+    non_pref_dir = (pref_dir + 180) % 360
+    pref_dir_val = responses_df.loc[pref_dir].mean_dff
+    non_pref_dir_val = responses_df.loc[non_pref_dir].mean_dff
+    new_dsi = (pref_dir_val-non_pref_dir_val)/(pref_dir_val+non_pref_dir_val)
+    return new_dsi
