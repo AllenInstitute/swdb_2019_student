@@ -10,6 +10,8 @@ def get_dg_response_filter_from_saskia():
       [
         'cell_specimen_id',
         'responsive': bool
+        'pref_dir',
+        'pref_tf'
       ]
     The source is from saskia's swdb_dg_table.csv dataset.
     """
@@ -17,8 +19,8 @@ def get_dg_response_filter_from_saskia():
     # (in the same directory that your python process is based)
     # Control delimiters, rows, column names with read_csv (see later) 
     data = pd.read_csv("../data/swdb_dg_table.csv")
-    return data[['cell_specimen_id', 'responsive_dg', 'pref_dir_dg']].rename(
-        columns = {'responsive_dg': 'responsive', 'pref_dir_dg': 'pref_dir'},
+    return data[['cell_specimen_id', 'responsive_dg', 'pref_dir_dg','pref_tf_dg']].rename(
+        columns = {'responsive_dg': 'responsive', 'pref_dir_dg': 'pref_dir', 'pref_tf_dg': 'pref_tf'},
         inplace = False)
 
 def get_cells(boc, cells, brain_area, depth, cell_type, stimuli = [stim_info.DRIFTING_GRATINGS]):
