@@ -1,13 +1,11 @@
-import os
 import numpy as np
 import matplotlib.pyplot as plt
-import pandas as pd
 from mtspec import mtspec
 from mtspec.util import _load_mtdata
 from functools import reduce
 '''
-Requires installation of mtspec package. For installation, follow instructions on
-https://krischer.github.io/mtspec/ 
+OSTH_MULTITAPER_SPECTRUM requires installation of mtspec package. For installation, 
+follow instructions on https://krischer.github.io/mtspec/ 
 '''
 def psth_multitaper_spectrum(cache,session_id,unit_ids, stimulus_presentation_id, W,time_step = 1/100, 
                              temporal_frequency = None,orientation=None,phase=None,
@@ -180,7 +178,8 @@ def get_stim_ids_variable(stim_table_key,values):
 def get_good_units(session_units,SNR = 1,ISIV = 0.5, structure_acronym = None):
     '''
     GET_GOOD_UNITS outputs unit_ids above a SNR threshold and below an ISI violation
-    threshold.  If structure is specfied, then output is only for those structures..
+    threshold.  If structure is specfied, then output is only for units in that 
+    brain structure.  Otherwise, all units are returned.
     
     INPUTS:
         session_units     = Dataframe containing all the unit_ids for a given session.
@@ -189,6 +188,14 @@ def get_good_units(session_units,SNR = 1,ISIV = 0.5, structure_acronym = None):
         ISIV              = isi_violations threshold. Returns all units with isi_violations
                             below threshold. (Default = 0.5)
         structure_acronym = (Optional) String, for corresponding structure.
+        
+    RETURNS:
+        UNIT_IDS                 = unit IDs for all units in that region or session
+        FAST_SPIKING_UNIT_IDS    = unit IDs for all fast spiking units, identified
+                                   as units whose waveform duration is < 0.4
+        REGULAR_SPIKING_UNIT_IDS = unit IDs for all regular spiking units, identified
+                                   as units whose waveform duration is >= 0.4 
+        
         
     '''
     if structure_acronym is None:
@@ -209,6 +216,47 @@ def get_good_units(session_units,SNR = 1,ISIV = 0.5, structure_acronym = None):
         regular_spiking_unit_ids = unit_ids_df[~(cell_type_mask)].index
         
     return unit_ids, fast_spiking_unit_ids, regular_spiking_unit_ids
+
+def get_good_units_df(session_units,SNR = 1,ISIV = 0.5, structure_acronym = None):
+    '''
+    GET_GOOD_UNITS outputs unit dataframes for units above a SNR threshold and
+    below an ISI violation threshold.  If structure is specfied, then output is 
+    only for units in that brain structure.  Otherwise, all units are returned.
+    
+    INPUTS:
+        session_units     = Dataframe containing all the unit_ids for a given session.
+        SNR               = SNR threshold. Returns all units with SNR above threshold
+                             (Default = 1)
+        ISIV              = isi_violations threshold. Returns all units with isi_violations
+                            below threshold. (Default = 0.5)
+        structure_acronym = (Optional) String, for corresponding structure.
+        
+    RETURNS:
+        UNIT_IDS_DF             = dataframe for all units in that region or session
+        FAST_SPIKING_UNIT_DF    = dataframe for all fast spiking units, identified
+                                   as units whose waveform duration is < 0.4
+        REGULAR_SPIKING_UNIT_DF = dataframe for all regular spiking units, identified
+                                   as units whose waveform duration is >= 0.4 
+        
+        
+    '''
+    if structure_acronym is None:
+        unit_ids_df = session_units[(session_units.snr>SNR)&(session_units.isi_violations<ISIV)]
+        cell_type_mask = unit_ids_df["waveform_duration"] < 0.4
+        fast_spiking_unit_df    = unit_ids_df[cell_type_mask]
+        regular_spiking_unit_df = unit_ids_df[~(cell_type_mask)]
+    else:
+        unit_ids_df = session_units[
+                (session_units.snr>SNR)\
+                & (session_units.isi_violations<ISIV)\
+                & (session_units.structure_acronym==structure_acronym)
+        ]
+
+        cell_type_mask = unit_ids_df["waveform_duration"] < 0.4
+        fast_spiking_unit_df    = unit_ids_df[cell_type_mask]
+        regular_spiking_unit_df = unit_ids_df[~(cell_type_mask)]
+        
+    return unit_ids_df, fast_spiking_unit_df, regular_spiking_unit_df
 
 
 
