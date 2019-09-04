@@ -3,37 +3,35 @@ import os
 import numpy as np
 import matplotlib.pyplot as plt
 import pandas as pd
-import pickle
 
-from allensdk.brain_observatory.ecephys.ecephys_project_cache import EcephysProjectCache
-from allensdk.brain_observatory.ecephys import ecephys_session
+# from allensdk.brain_observatory.ecephys.ecephys_project_cache import EcephysProjectCache
+# from allensdk.brain_observatory.ecephys import ecephys_session
 
-import sys
-testdir = os.getcwd() 
-import smite
+# import sys
+# testdir = os.getcwd() 
+# import smite
 
-import platform
-platstring = platform.platform()
+# import platform
+# platstring = platform.platform()
 
-if 'Darwin' in platstring:
-    # OS X 
-    data_root = "/Volumes/Brain2019/"
-elif 'Windows'  in platstring:
-    # Windows (replace with the drive letter of USB drive)
-    data_root = "E:/"
-elif ('amzn1' in platstring):
-    # then on AWS
-    data_root = "/data/"
-else:
-    # then your own linux platform
-    # EDIT location where you mounted hard drive
-    data_root = "/media/$USERNAME/Brain2019/"
-    data_root = "/run/media/tom.chartrand/Brain2019"
+# if 'Darwin' in platstring:
+#     # OS X 
+#     data_root = "/Volumes/Brain2019/"
+# elif 'Windows'  in platstring:
+#     # Windows (replace with the drive letter of USB drive)
+#     data_root = "E:/"
+# elif ('amzn1' in platstring):
+#     # then on AWS
+#     data_root = "/data/"
+# else:
+#     # then your own linux platform
+#     # EDIT location where you mounted hard drive
+#     data_root = "/media/$USERNAME/Brain2019/"
+#     data_root = "/run/media/tom.chartrand/Brain2019"
 
-manifest_path = os.path.join(data_root, "dynamic-brain-workshop/visual_coding_neuropixels/2019/manifest.json")
+# manifest_path = os.path.join(data_root, "dynamic-brain-workshop/visual_coding_neuropixels/2019/manifest.json")
 
- 
-cache = EcephysProjectCache.fixed(manifest=manifest_path)
+# cache = EcephysProjectCache.fixed(manifest=manifest_path)
 
 ###########################################################
 
@@ -65,9 +63,13 @@ def get_binned_spike_trains_sorted(cache,session_id,stim_type,time_step=1/100):
     """
     import numpy as np
 
+
+    
+
     session = cache.get_session_data(session_id)
     my_units = session.units #[session.units.structure_acronym==rec_area]
-    my_units = my_units.sort_values(by=['probe_vertical_position'], ascending = False)
+    my_units = my_units.sort_values(by=['structure_acronym', 'probe_vertical_position'], ascending = False)
+
     my_stim = session.get_presentations_for_stimulus(stim_type)
     first_id = my_stim.index.values[0]
     first_duration = my_stim.loc[first_id, "stop_time"] - my_stim.loc[first_id, "start_time"]
@@ -96,6 +98,10 @@ def get_te_matrix(session_id, save_path = os.getcwd()):
 
 #select specific stimuli - leaves option to use natural scenes but need to hack away
 #at "unique stimuli" below
+
+
+    print("getting session data and presentationwise spike counts...")
+
 
     session = cache.get_session_data(session_id)
     stim_table = session.get_presentations_for_stimulus(stim_type)
@@ -141,11 +147,16 @@ def get_te_matrix(session_id, save_path = os.getcwd()):
 
 # DO THE TRANSFER ENTROPY
 
+
+    print("performing transfer entropy calculation...")
+
+
     XX = Avg_psth
 
     te_mat = np.zeros([N1,N2,8])
 
     for itrial in range(8):
+
         print(itrial)
         for i in range(N1):
             for j in range(N2):
@@ -158,23 +169,33 @@ def get_te_matrix(session_id, save_path = os.getcwd()):
                 
                 te_mat[i,j,itrial]= TYX - TXY
     
+
+
+    print("saving files...")
+
     save_object(te_mat, str(save_path +'/te_mat_' + stim_type + 'session_' + str(session_id) +'.pkl'))
 
 
 # Average the orientations to get a units x units array
 
-    session_TE = np.mean(corr_mat, axis = 2)
+
+    session_TE = np.mean(te_mat, axis = 2)
+
 
     save_object(session_TE, str(save_path +'/session_TE_' + stim_type + 'session_' + str(session_id) +'.pkl'))
 
 # Save the V1 units to df in depth order 
 
     VISp_units = units.loc[unitIDs1]
-    VISp_units.to_pickle(VISp_units, str(save_path +'/VISp_units_' + stim_type + 'session_' + str(session_id) +'.pkl'))
+
+    save_object(VISp_units, str(save_path +'/VISp_units_' + stim_type + 'session_' + str(session_id) +'.pkl'))
+
 
 # Save all visual units to df in depth order
 
     all_visual_units = units.loc[unitIDs2]
-    all_visual_units.to_pickle(all_visual_units, str(save_path +'/all_visual_units_' + stim_type + 'session_' + str(session_id) +'.pkl'))
+
+    save_object(all_visual_units, str(save_path +'/all_visual_units_' + stim_type + 'session_' + str(session_id) +'.pkl'))
     
+    print("oh boy, my very own transfer entropy matrix")
 
