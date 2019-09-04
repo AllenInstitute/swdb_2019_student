@@ -63,6 +63,7 @@ def get_filtered_cells(cells, response_filter):
 
 def get_avg_normalized_response(boc, session_id, cell_specimen_id, temporal_frequency=2.0):
     ''' generate normalized average response for each grating orientation
+    @return None if the max response is not positive. Some cells have negative mean dff values for all directions. 
     '''
     data_set = boc.get_ophys_experiment_data(session_id)
     
@@ -85,16 +86,16 @@ def get_avg_normalized_response(boc, session_id, cell_specimen_id, temporal_freq
     tf2_response = cell_response[cell_response.temporal_frequency==temporal_frequency]
     
     mean_dff_ori = tf2_response.groupby('orientation').mean()
-    # Tried clipping, but not sure if right. Also, some cells are all negative. Like cell 517410416, exp 501271265, ec 511509529
-    # mean_dff_ori = mean_dff_ori.clip(lower=pd.Series({'mean_dff': 0.0}), axis=1)
-    # So, just ignore this cell if negative dff
-    # TODO: Maybe be more lenient and allow if > -0.01?
+    # Clip negative values. Some examples: cell 517410416, exp 501271265, ec 511509529
+    # Talked to shawn and marina, and verified that these negative values are pretty small, so we should be good.
     mean_dff_ori = mean_dff_ori.clip(lower=pd.Series({'mean_dff': 0.0}), axis=1)
     #if min_mean_dff < 0:
     #  print ("Ignoring cell", cell_specimen_id, "because min_mean_dff =", min_mean_dff)
     #  return None
 
     max_response = mean_dff_ori['mean_dff'].max()
+    if max_response == 0:
+      return None
     
     return mean_dff_ori['mean_dff']/max_response
 
