@@ -3,6 +3,8 @@ Helpful functions for accessing data
 """
 import pandas as pd
 import allensdk.brain_observatory.stimulus_info as stim_info
+from scipy.stats import pearsonr
+import numpy as np
 
 def get_dg_response_filter_from_saskia():
     """
@@ -106,3 +108,37 @@ def convert_polar_dict_to_arrays(polar_series):
         thetas.append(theta)
         rs.append(r)
     return thetas, rs
+
+def avg_temp_corr_one_exp(boc, eid, c1, c2):
+    """For one experiment, get the spontaneous presentations, for each one get temporal correlation of
+    the two cells, then average all these temporal correlations.
+    I checked that sesh A and B just have 1 spontaenous preso, session C have 2.
+    So, only the big grey chunks are counted. The small ones aren't.
+    """
+    data_set = boc.get_ophys_experiment_data(eid)
+
+    try: 
+        cidxs = data_set.get_cell_specimen_indices([c1, c2])
+    except Exception as inst:
+        return None
+
+    events = boc.get_ophys_experiment_events(ophys_experiment_id=eid)
+    cidx1 = cidxs[0]
+    cidx2 = cidxs[1]
+    events1 = events[cidx1,:]
+    events2 = events[cidx2,:]
+
+    stim_table = data_set.get_stimulus_table('spontaneous') 
+
+    # Each item is a temporal correlation of a single spontaneous presentation
+    temp_corr_lists = []
+    for i in range(len(stim_table)):
+        start = stim_table.start[i]
+        end = stim_table.end[i]
+        ts1 = events1[start:end]
+        ts2 = events2[start:end]
+        temp_corr, p_value = pearsonr(ts1, ts2)
+        temp_corr_lists.append(temp_corr)
+    if len(temp_corr_lists) == 0:
+        return None
+    return np.mean(temp_corr_lists)
