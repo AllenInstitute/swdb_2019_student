@@ -3,10 +3,13 @@ import numpy as np
 import matplotlib.pyplot as plt
 import pandas as pd
 from mtspec import mtspec
-from mtspec.util import _load_mtdatas
+from mtspec.util import _load_mtdata
 from functools import reduce
-
-def psth_multitaper_spectrum(session_id,unit_ids, stimulus_presentation_id, W,time_step = 1/100, 
+'''
+Requires installation of mtspec package. For installation, follow instructions on
+https://krischer.github.io/mtspec/ 
+'''
+def psth_multitaper_spectrum(cache,session_id,unit_ids, stimulus_presentation_id, W,time_step = 1/100, 
                              temporal_frequency = None,orientation=None,phase=None,
                              spatial_frequency=None,show=True):
     '''
@@ -56,8 +59,11 @@ def psth_multitaper_spectrum(session_id,unit_ids, stimulus_presentation_id, W,ti
     mean_histograms = histograms.mean(dim="stimulus_presentation_id")
     psth_trials = mean_histograms.values
     
+    # To get firing rate
+    psth_trials = psth_trials.mean(1)/time_step
+    
     # Compute power spectrum
-    Pxx, f, jackknife, _, _ = mtspec(data=psth_trials.mean(1),delta=time_step, time_bandwidth=TW,
+    Pxx, f, jackknife, _, _ = mtspec(data=psth_trials,delta=time_step, time_bandwidth=TW,
             number_of_tapers=number_of_tapers, statistics=True)
     
     # Plot if true and return power spectrum & frequencies up until Nyquist frequency
@@ -170,3 +176,39 @@ def get_stim_ids_variable(stim_table_key,values):
     stim_ids = stim_table_key.isin(values).index
 
     return stim_ids
+
+def get_good_units(session_units,SNR = 1,ISIV = 0.5, structure_acronym = None):
+    '''
+    GET_GOOD_UNITS outputs unit_ids above a SNR threshold and below an ISI violation
+    threshold.  If structure is specfied, then output is only for those structures..
+    
+    INPUTS:
+        session_units     = Dataframe containing all the unit_ids for a given session.
+        SNR               = SNR threshold. Returns all units with SNR above threshold
+                             (Default = 1)
+        ISIV              = isi_violations threshold. Returns all units with isi_violations
+                            below threshold. (Default = 0.5)
+        structure_acronym = (Optional) String, for corresponding structure.
+        
+    '''
+    if structure_acronym is None:
+        unit_ids_df = session_units[(session_units.snr>SNR)&(session_units.isi_violations<ISIV)]
+        unit_ids = unit_ids_df.index
+        cell_type_mask = unit_ids_df["waveform_duration"] < 0.4
+        fast_spiking_unit_ids    = unit_ids_df[cell_type_mask].index
+        regular_spiking_unit_ids = unit_ids_df[~(cell_type_mask)].index
+    else:
+        unit_ids_df = session_units[
+                (session_units.snr>SNR)\
+                & (session_units.isi_violations<ISIV)\
+                & (session_units.structure_acronym==structure_acronym)
+        ]
+        unit_ids = unit_ids_df.index
+        cell_type_mask = unit_ids_df["waveform_duration"] < 0.4
+        fast_spiking_unit_ids    = unit_ids_df[cell_type_mask].index
+        regular_spiking_unit_ids = unit_ids_df[~(cell_type_mask)].index
+        
+    return unit_ids, fast_spiking_unit_ids, regular_spiking_unit_ids
+
+
+
