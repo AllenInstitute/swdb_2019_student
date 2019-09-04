@@ -142,3 +142,27 @@ def avg_temp_corr_one_exp(boc, eid, c1, c2):
     if len(temp_corr_lists) == 0:
         return None
     return np.mean(temp_corr_lists)
+
+def pairwise_dir_avg_temp_corr_one_exp(boc, ecid, eid, d1, d2, c_df):
+  """On one experiment, average temporal correlation between cell groups that prefer d1 vs d2
+  Conceptually, the average correlation of spontaneous activity of a cell that likes d1 vs cell that likes d2.
+  @param d1, d2 = the two directions to compare. E.g. 180.0
+  @param c_df A dataframe with: [cell_specimen_id, experiment_container_id, pref_dir].
+      You should already filter out the non-responsive / selective cells.
+  """
+  c_df = c_df[c_df.experiment_container_id == ecid]
+  cs_d1 = c_df[c_df.pref_dir == d1]
+  cs_d2 = c_df[c_df.pref_dir == d2]
+
+  result = []
+  for c1 in cs_d1.cell_specimen_id:
+      for c2 in cs_d2.cell_specimen_id:
+          if c1 == c2:
+              continue
+          pair_corr = avg_temp_corr_one_exp(boc, eid, c1, c2)
+          if pair_corr is None:
+              continue
+          result.append(pair_corr)
+  if len(result) is 0:
+      return None
+  return np.mean(result)
