@@ -110,7 +110,7 @@ def convert_polar_dict_to_arrays(polar_series):
         rs.append(r)
     return thetas, rs
 
-def corr_one_exp(boc, eid, c1, c2, use_events, noise_corr_else_avg_temp_corr):
+def corr_one_exp(data_set, events, c1, c2, use_events, noise_corr_else_avg_temp_corr):
     """Calculate one of [noise correlatio, trial-avg temporal corr] for movie presos for one experiment.
     @param use_events if True, use events, else use dff
     @param do_noise_corr if True, get all the presos, then do noise correlation,
@@ -126,7 +126,6 @@ def corr_one_exp(boc, eid, c1, c2, use_events, noise_corr_else_avg_temp_corr):
     I'm just using natural movie 1 because it exists in all experiments.
     See http://alleninstitute.github.io/AllenSDK/_static/container_session_layout.png
     """
-    data_set = boc.get_ophys_experiment_data(eid)
 
     try: 
         cidxs = data_set.get_cell_specimen_indices([c1, c2])
@@ -134,7 +133,6 @@ def corr_one_exp(boc, eid, c1, c2, use_events, noise_corr_else_avg_temp_corr):
         return None
 
     if use_events:
-      events = boc.get_ophys_experiment_events(ophys_experiment_id=eid)
       cidx1 = cidxs[0]
       cidx2 = cidxs[1]
       events1 = events[cidx1,:]
@@ -195,6 +193,8 @@ def pairwise_dir_avg_temp_corr_one_exp(boc, ecid, eid, d1, d2, c_df, use_events,
   @param c_df A dataframe with: [cell_specimen_id, experiment_container_id, pref_dir].
       You should already filter out the non-responsive / selective cells.
   """
+  data_set = boc.get_ophys_experiment_data(eid)
+  events = boc.get_ophys_experiment_events(ophys_experiment_id=eid)
   c_df = c_df[c_df.experiment_container_id == ecid]
   cs_d1 = c_df[c_df.pref_dir == d1]
   cs_d2 = c_df[c_df.pref_dir == d2]
@@ -204,7 +204,7 @@ def pairwise_dir_avg_temp_corr_one_exp(boc, ecid, eid, d1, d2, c_df, use_events,
       for c2 in cs_d2.cell_specimen_id:
           if c1 == c2:
               continue
-          pair_corr = corr_one_exp(boc, eid, c1, c2, use_events, noise_corr_else_avg_temp_corr)
+          pair_corr = corr_one_exp(data_set, events, c1, c2, use_events, noise_corr_else_avg_temp_corr)
           if pair_corr is None:
               continue
           result.append(pair_corr)
