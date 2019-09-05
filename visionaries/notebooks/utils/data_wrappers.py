@@ -152,6 +152,7 @@ def corr_one_exp(boc, eid, c1, c2, use_events, noise_corr_else_avg_temp_corr):
     """
     stim_table = data_set.get_stimulus_table('natural_movie_one') 
     if noise_corr_else_avg_temp_corr:
+      # Noise correlation
       c1_trial_results = []
       c2_trial_results = []
       for trial_i in range(stim_table.repeat.max() + 1):
@@ -161,6 +162,13 @@ def corr_one_exp(boc, eid, c1, c2, use_events, noise_corr_else_avg_temp_corr):
           c2_trial_result = events2[start:end].mean()
           c1_trial_results.append(c1_trial_result)
           c2_trial_results.append(c2_trial_result)
+      # Subtract mean from the trial results before correlating, following Ko 2011
+      """
+      Noise correlation was found by subtracting the average response from the responses to each trial,
+      and then calculating the correlation coefficient of mean-subtracted responses
+      """
+      c1_trial_results = np.array(c1_trial_results) - np.mean(c1_trial_results)
+      c2_trial_results = np.array(c2_trial_results) - np.mean(c2_trial_results)
       corr, p_value = pearsonr(c1_trial_results, c2_trial_results)
       return corr
     else:
