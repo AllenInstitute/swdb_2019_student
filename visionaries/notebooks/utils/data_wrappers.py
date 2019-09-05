@@ -109,7 +109,7 @@ def convert_polar_dict_to_arrays(polar_series):
         rs.append(r)
     return thetas, rs
 
-def avg_temp_corr_one_exp(boc, eid, c1, c2):
+def avg_temp_corr_one_exp(boc, eid, c1, c2, use_events):
     """For one experiment, get the spontaneous presentations, for each one get temporal correlation of
     the two cells, then average all these temporal correlations.
     I checked that sesh A and B just have 1 spontaenous preso, session C have 2.
@@ -122,12 +122,17 @@ def avg_temp_corr_one_exp(boc, eid, c1, c2):
     except Exception as inst:
         return None
 
-    events = boc.get_ophys_experiment_events(ophys_experiment_id=eid)
-    cidx1 = cidxs[0]
-    cidx2 = cidxs[1]
-    events1 = events[cidx1,:]
-    events2 = events[cidx2,:]
-
+    if use_events:
+      events = boc.get_ophys_experiment_events(ophys_experiment_id=eid)
+      cidx1 = cidxs[0]
+      cidx2 = cidxs[1]
+      events1 = events[cidx1,:]
+      events2 = events[cidx2,:]
+    else: 
+      timestamps, dff = data_set.get_dff_traces(cell_specimen_ids=[c1])
+      events1 = dff[0,:]
+      timestamps, dff = data_set.get_dff_traces(cell_specimen_ids=[c2])
+      events2 = dff[0,:]
     stim_table = data_set.get_stimulus_table('spontaneous') 
 
     # Each item is a temporal correlation of a single spontaneous presentation
@@ -143,7 +148,7 @@ def avg_temp_corr_one_exp(boc, eid, c1, c2):
         return None
     return np.mean(temp_corr_lists)
 
-def pairwise_dir_avg_temp_corr_one_exp(boc, ecid, eid, d1, d2, c_df):
+def pairwise_dir_avg_temp_corr_one_exp(boc, ecid, eid, d1, d2, c_df, use_events=True):
   """On one experiment, average temporal correlation between cell groups that prefer d1 vs d2
   Conceptually, the average correlation of spontaneous activity of a cell that likes d1 vs cell that likes d2.
   @param d1, d2 = the two directions to compare. E.g. 180.0
@@ -159,7 +164,7 @@ def pairwise_dir_avg_temp_corr_one_exp(boc, ecid, eid, d1, d2, c_df):
       for c2 in cs_d2.cell_specimen_id:
           if c1 == c2:
               continue
-          pair_corr = avg_temp_corr_one_exp(boc, eid, c1, c2)
+          pair_corr = avg_temp_corr_one_exp(boc, eid, c1, c2, use_events)
           if pair_corr is None:
               continue
           result.append(pair_corr)
