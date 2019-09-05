@@ -109,10 +109,15 @@ def convert_polar_dict_to_arrays(polar_series):
         rs.append(r)
     return thetas, rs
 
-def corr_one_exp(data_set, events, c1, c2, use_events, noise_corr_else_avg_temp_corr):
+def corr_one_exp(data_set, events, c1, c2, use_events, corr_type):
     """Calculate one of [noise correlatio, trial-avg temporal corr] for movie presos for one experiment.
     @param use_events if True, use events, else use dff
-    @param do_noise_corr if True, get all the presos, then do noise correlation,
+    @param corr_type. One of these three values: [AVG_TEMP_CORR, TEMP_CORR_AVG, NOISE_CORR]
+      AVG_TEMP_CORR: For each presentation, correlate the event ts, then, average all these correlation values
+      TEMP_CORR_AVG: Average out all the event ts'es to get 2 ts, then, correlate 2 ts to get 1 number.
+      NOISE_CORR: For each presentation, get the 2 means from the 2 ts'es, repeat for each presentation, 
+        then correlate the two arrays of means.
+      do_noise_corr if True, get all the presos, then do noise correlation,
     else, average out temporal correlation for each preso.
 
     Note about spontaneous:
@@ -148,7 +153,7 @@ def corr_one_exp(data_set, events, c1, c2, use_events, noise_corr_else_avg_temp_
     'spontaneous'
     """
     stim_table = data_set.get_stimulus_table('natural_movie_one') 
-    if noise_corr_else_avg_temp_corr:
+    if corr_type == 'NOISE_CORR':
       # Noise correlation
       c1_trial_results = []
       c2_trial_results = []
@@ -168,7 +173,7 @@ def corr_one_exp(data_set, events, c1, c2, use_events, noise_corr_else_avg_temp_
       c2_trial_results = np.array(c2_trial_results) - np.mean(c2_trial_results)
       corr, p_value = pearsonr(c1_trial_results, c2_trial_results)
       return corr
-    else:
+    elif corr_type == 'AVG_TEMP_CORR':
       # do avg of temporal correlation
       # Each item is a temporal correlation of a single spontaneous presentation
       temp_corr_lists = []
@@ -184,8 +189,14 @@ def corr_one_exp(data_set, events, c1, c2, use_events, noise_corr_else_avg_temp_
       if len(temp_corr_lists) == 0:
           return None
       return np.mean(temp_corr_lists)
+    elif corr_type == 'TEMP_CORR_AVG':
+      # avg all the events, then do temp correlation once.
+      # TODO: Implement. But are all the lengths the same?
+      return None
+    else:
+      raise Exception("Invalid corr_type: {}".format(corr_type))
 
-def pairwise_dir_avg_temp_corr_one_exp(boc, eid, cs_d1, cs_d2, max_d, use_events, noise_corr_else_avg_temp_corr):
+def pairwise_dir_avg_temp_corr_one_exp(boc, eid, cs_d1, cs_d2, max_d, use_events, corr_type):
   """On one experiment, average temporal correlation between cell groups that prefer d1 vs d2
   Conceptually, the average correlation of spontaneous activity of a cell that likes d1 vs cell that likes d2.
   @param d1, d2 = the two directions to compare. E.g. 180.0
@@ -203,7 +214,7 @@ def pairwise_dir_avg_temp_corr_one_exp(boc, eid, cs_d1, cs_d2, max_d, use_events
           d = get_cell_distance(data_set, loc_x, loc_y, c1, c2)
           if d is None or d > max_d:
             continue
-          pair_corr = corr_one_exp(data_set, events, c1, c2, use_events, noise_corr_else_avg_temp_corr)
+          pair_corr = corr_one_exp(data_set, events, c1, c2, use_events, corr_type)
           if pair_corr is None:
               continue
           result.append(pair_corr)
