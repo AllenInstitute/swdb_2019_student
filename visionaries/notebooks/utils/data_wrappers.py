@@ -191,8 +191,28 @@ def corr_one_exp(data_set, events, c1, c2, use_events, corr_type):
       return np.mean(temp_corr_lists)
     elif corr_type == 'TEMP_CORR_AVG':
       # avg all the events, then do temp correlation once.
-      # TODO: Implement. But are all the lengths the same?
-      return None
+
+      # need to figure out the right start-end pairs because some reps are off-by-one frames.
+      starts = []
+      min_window_size = stim_table.end.max()
+      for trial_i in range(stim_table.repeat.max() + 1):
+          start = stim_table[stim_table.repeat==trial_i].start.min()
+          end = stim_table[stim_table.repeat==trial_i].start.max()
+          starts.append(start)
+          min_window_size = min(min_window_size, end-start)
+      totalts1 = np.zeros(min_window_size)
+      totalts2 = np.zeros(min_window_size)
+      num_trial_processed = 0
+      for start in starts :
+          end = start + min_window_size
+          totalts1 += events1[start:end]
+          totalts2 += events2[start:end]
+          num_trial_processed += 1
+      totalts1 /= num_trial_processed
+      totalts2 /= num_trial_processed
+      corr, p_value = pearsonr(totalts1, totalts2)
+
+      return corr
     else:
       raise Exception("Invalid corr_type: {}".format(corr_type))
 
