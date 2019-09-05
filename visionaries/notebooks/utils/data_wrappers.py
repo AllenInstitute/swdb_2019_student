@@ -164,5 +164,5 @@ def pairwise_dir_avg_temp_corr_one_exp(boc, ecid, eid, d1, d2, c_df):
               continue
           result.append(pair_corr)
   if len(result) is 0:
-      return None
-  return np.mean(result)
+      return None, None, None, None
+  return np.mean(result), len(result), len(cs_d1), len(cs_d2)
