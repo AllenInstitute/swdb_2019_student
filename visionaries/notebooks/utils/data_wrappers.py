@@ -3,6 +3,8 @@ Helpful functions for accessing data
 """
 import pandas as pd
 import allensdk.brain_observatory.stimulus_info as stim_info
+from scipy.stats import pearsonr
+import numpy as np
 
 def get_dg_response_filter_from_saskia():
     """
@@ -106,3 +108,66 @@ def convert_polar_dict_to_arrays(polar_series):
         thetas.append(theta)
         rs.append(r)
     return thetas, rs
+
+def avg_temp_corr_one_exp(boc, eid, c1, c2, use_events):
+    """For one experiment, get the spontaneous presentations, for each one get temporal correlation of
+    the two cells, then average all these temporal correlations.
+    I checked that sesh A and B just have 1 spontaenous preso, session C have 2.
+    So, only the big grey chunks are counted. The small ones aren't.
+    """
+    data_set = boc.get_ophys_experiment_data(eid)
+
+    try: 
+        cidxs = data_set.get_cell_specimen_indices([c1, c2])
+    except Exception as inst:
+        return None
+
+    if use_events:
+      events = boc.get_ophys_experiment_events(ophys_experiment_id=eid)
+      cidx1 = cidxs[0]
+      cidx2 = cidxs[1]
+      events1 = events[cidx1,:]
+      events2 = events[cidx2,:]
+    else: 
+      timestamps, dff = data_set.get_dff_traces(cell_specimen_ids=[c1])
+      events1 = dff[0,:]
+      timestamps, dff = data_set.get_dff_traces(cell_specimen_ids=[c2])
+      events2 = dff[0,:]
+    stim_table = data_set.get_stimulus_table('spontaneous') 
+
+    # Each item is a temporal correlation of a single spontaneous presentation
+    temp_corr_lists = []
+    for i in range(len(stim_table)):
+        start = stim_table.start[i]
+        end = stim_table.end[i]
+        ts1 = events1[start:end]
+        ts2 = events2[start:end]
+        temp_corr, p_value = pearsonr(ts1, ts2)
+        temp_corr_lists.append(temp_corr)
+    if len(temp_corr_lists) == 0:
+        return None
+    return np.mean(temp_corr_lists)
+
+def pairwise_dir_avg_temp_corr_one_exp(boc, ecid, eid, d1, d2, c_df, use_events=True):
+  """On one experiment, average temporal correlation between cell groups that prefer d1 vs d2
+  Conceptually, the average correlation of spontaneous activity of a cell that likes d1 vs cell that likes d2.
+  @param d1, d2 = the two directions to compare. E.g. 180.0
+  @param c_df A dataframe with: [cell_specimen_id, experiment_container_id, pref_dir].
+      You should already filter out the non-responsive / selective cells.
+  """
+  c_df = c_df[c_df.experiment_container_id == ecid]
+  cs_d1 = c_df[c_df.pref_dir == d1]
+  cs_d2 = c_df[c_df.pref_dir == d2]
+
+  result = []
+  for c1 in cs_d1.cell_specimen_id:
+      for c2 in cs_d2.cell_specimen_id:
+          if c1 == c2:
+              continue
+          pair_corr = avg_temp_corr_one_exp(boc, eid, c1, c2, use_events)
+          if pair_corr is None:
+              continue
+          result.append(pair_corr)
+  if len(result) is 0:
+      return None, None, None, None
+  return np.mean(result), len(result), len(cs_d1), len(cs_d2)
