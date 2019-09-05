@@ -162,9 +162,14 @@ def plotCluesToEngagementVsNot(sess, titleStr = '', saveFigFlag = False):
     
     T = sess.ophys_timestamps  # np vector, ophys times 
     rewards = sess.rewards  # panda: timestamps, volume, autorewarded
-    lickTimes = sess.licks   # panda:  timestamps# running speed and dPrime:
-    run = sess.running_speed
+    lickTimes = sess.licks   # panda:  timestamps 
     roll = sess.get_rolling_performance_df()  # fn returns dataframe
+    run = sess.running_speed
+    # remove outliers from run data:
+    runTemp = run.speed.values
+    clipValHigh = np.percentile(runTemp, 99)
+    clipValLow = np.percentile(runTemp, 1)
+    run.speed = np.maximum( np.minimum(runTemp, clipValHigh), clipValLow )
     
     
     # varused for both licks and rewards:
@@ -186,7 +191,7 @@ def plotCluesToEngagementVsNot(sess, titleStr = '', saveFigFlag = False):
     #plt.figure(figsize = (10,5))
     plt.subplot(4,1,1)
     plt.plot(Tsubsampled, lickRate)
-    plt.xlabel('time (s)')
+    #plt.xlabel('time (s)')
     plt.ylabel('licks/min')
     plt.title( titleStr ) # 'lick rate')
     plt.grid(b=True)
@@ -205,7 +210,7 @@ def plotCluesToEngagementVsNot(sess, titleStr = '', saveFigFlag = False):
     #plt.figure(figsize = (10,5))
     plt.subplot(4,1,2)
     plt.plot(Tsubsampled, rewardsRateSmoothed)
-    plt.xlabel('time (s)')
+    #plt.xlabel('time (s)')
     plt.ylabel('rewards/min')
     #plt.title('reward rate')
     plt.grid(b=True)
@@ -218,19 +223,19 @@ def plotCluesToEngagementVsNot(sess, titleStr = '', saveFigFlag = False):
     #plt.xlabel('time (s)')
     
     ####### 3.  plot variation in run speed:
-    #run.plot(x = 'timestamps', y = 'speed')     # instantaneous run speed, not so useful
     
     # window run:  # timestamp step = 0.02 sec, so 3000 = 1 minute
     windowSize = 12000
     runWindowed = run.rolling(windowSize)
-    run['runSpeedMean'] = runWindowed.mean().speed
+    run['runSpeedMedian'] = runWindowed.median().speed
     run['runSpeedStd'] = runWindowed.std().speed
     plt.subplot(4,1,3)
     #ax = plt.gca()
-    run.plot(x = 'timestamps', y = [ 'runSpeedMean', 'runSpeedStd' ], ax = plt.gca() ) #,  title =  titleStr) # figsize = (10,5), title =  titleStr)
+    run.plot(x = 'timestamps', y = [ 'runSpeedMedian', 'runSpeedStd' ], ax = plt.gca() ) #,  title =  titleStr) # figsize = (10,5), title =  titleStr)
     plt.grid(b=True)
     plt.xlim([0,4500])
     plt.ylabel('running')
+    plt.xlabel('')
     
     ####### 4.  rolling d prime:
     # remove nans:
@@ -243,15 +248,19 @@ def plotCluesToEngagementVsNot(sess, titleStr = '', saveFigFlag = False):
     plt.grid(b=True)
     plt.xlim([0,4500])
     plt.ylabel('dPrime')
+    plt.xlabel('time (s)')
 
     if saveFigFlag:
         figName = titleStr + '.png'
         fig.savefig(figName)
         plt.close(fig)
+        
+    # run.plot(x = 'timestamps', y = 'speed')     # instantaneous run speed, useful to check effect of clipping
+    
 #%%
 def plotStatisticsOfVariableVariance(M, binEdges = 50, titleStr = ''):
     ''' 
-    Given a matrix where each row is a cell's responses to different trials, (a) plot the histograms of each cell, (b) plot the mean vs the median (as a measure of non-gaussian-ness.
+    Given a matrix where each row is a cell's responses to different trials, (a) plot the histograms of each cell, (b) plot the mean vs the median (as a measure of non-gaussian-ness).
     
     Parameters
     -----------
@@ -311,7 +320,7 @@ def plotStatisticsOfVariableVariance(M, binEdges = 50, titleStr = ''):
     plt.axis('equal')
 #%%
 
-def makeHeatmap(A, X =[], Y = [], yLabel = 'cells', xLabel = 'x', title = '', colorBarLabel = 'value', figSizeInches = (10,10) ):
+def makeHeatmap(A, X =[], Y = [], yLabel = 'cells', xLabel = 'x', titleStr = '', colorBarLabel = 'value', figSizeInches = (10,10) ):
     ''' 
     Plots a heatmap. This is code ripped from the visualBehavior tutorial and not optimized at all. X and Y ticks are not versatile, so X and Y are best left empty.
     
@@ -350,8 +359,43 @@ def makeHeatmap(A, X =[], Y = [], yLabel = 'cells', xLabel = 'x', title = '', co
     ax.set_yticks(np.arange(0, np.max(Y)), 10);
     ax.set_ylabel(yLabel)
     ax.set_xlabel(xLabel)
-    ax.set_title(title)
+    ax.set_title(titleStr)
 #ax.set_xticks(np.arange(0, len(sess.ophys_timestamps), 600*31));
     ax.set_xticklabels(np.arange(0, np.max(X), 600));
     plt.colorbar(cax, pad=0.015, label='dF/F')
     
+#%% 
+ 
+def addRewardedExcitationExperimentCheckoutTimesToExperimentTable(expTable):
+    ''' Given a subset of the experiment_table that excludes inhibitory neuron experiments and passive experiments: add a column with the manually-collected checkout times (ie when the mouse disengaged) in seconds.  Requires no repeats in the last 4 digits of experiment_id values.
+This must be done each time because the order of the table can change each time it is summoned. Note that a few 4-digit expIds have an invisible leading zero
+Special mouse: exp_id 0674 checks out at 2700, but is also checked out 1000-2000. This is NOT added to the dataframe by this function.
+
+    Parameters
+    ---------
+        expTable: pandas dataframe
+    
+    Returns: 
+        expTable: pandas dataframe
+        
+    Example:
+        expList = experiments.loc[ ( experiments.passive_session== False ) & ( experiments.cre_line == 'Slc17a7-IRES2-Cre' ) ] 
+        expList = addRewardedExcitationExperimentCheckoutTimesToExperimentTable(expList)
+    '''
+    import numpy as np
+    # The manually-collected checkout times:
+    expIdAlignedToCheckoutTimes= np.array([6687,2719,3334,9543,1034,1118,3478,7785,7518,7135,141,781,9926,9496,8936,3730,5577,2970,4639,7604,7625,9305,9605,6106,467,1524,8115,2951,2969,7488,6766,7033,8066,674,2085,3088,1157,1028,3858,1992,6128,5304,5766])
+    checkoutTimes = np.array([4000,4000,4000,3000,2600,3800,2500,2000,2500,2100,4000,3000,3600,2500,2400,4000,3400,4000,3200,3000,3300,3200,4000,4000,3400,3800,2400,2500,4000,1500,4000,4000,1500,2700,3500,3700,3600,4000,4000,4000,4000,4000,3400])
+    checkoutOrderedByCurrentExpList = np.zeros(checkoutTimes.shape)
+    expIdList = expTable.ophys_experiment_id.values
+    for i in range(len(expIdList)):
+        this = expIdList[i] % 10000
+        index = np.where( expIdAlignedToCheckoutTimes == this )[0]
+        if len(index) > 0:    # catch against other experiments being in table
+            checkoutOrderedByCurrentExpList[i] = checkoutTimes[ index  ]
+        else:
+            checkoutOrderedByCurrentExpList[i] = -1
+    expTable['checkoutTime'] = checkoutOrderedByCurrentExpList 
+    
+    return expTable
+   

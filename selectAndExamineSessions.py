@@ -53,12 +53,12 @@ expList = experiments.loc[ ( experiments.passive_session== False ) & ( experimen
 #%% 
 exIdList = expList.ophys_experiment_id.values
 
-for i in range(expList.shape[0]): # len(exIdList)):
+for i in range(expList.shape[0]):
     ex_id = exIdList[i]
     sessionNumber = expList.stage_name.values[i]
     sessionNumber = sessionNumber[6]
     depth = expList.imaging_depth.values[i]
-    titleStr = 'expID_' + str(ex_id) + '_Mouse_' + str(expList.animal_name.values[i]) + ',_' + expList.image_set.values[i] + sessionNumber + '_' + str(depth) + 'um'
+    titleStr = 'expID_' + str(ex_id) + '_Mouse_' + str(expList.animal_name.values[i]) + '_' + expList.image_set.values[i] + sessionNumber + '_' + str(depth) + 'um'
 
     # Given experiment_id, load this experiment (eg B4 for one mouse) from the cache.
     # sess will be an ExtendedBehaviorSession, Represents data from a single Visual Behavior Ophys imaging session. 
