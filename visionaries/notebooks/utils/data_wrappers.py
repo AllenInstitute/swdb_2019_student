@@ -110,7 +110,7 @@ def convert_polar_dict_to_arrays(polar_series):
         rs.append(r)
     return thetas, rs
 
-def corr_one_exp(boc, eid, c1, c2, use_events, noise_corr_else_avg_temp_corr):
+def corr_one_exp(data_set, events, c1, c2, use_events, noise_corr_else_avg_temp_corr):
     """Calculate one of [noise correlatio, trial-avg temporal corr] for movie presos for one experiment.
     @param use_events if True, use events, else use dff
     @param do_noise_corr if True, get all the presos, then do noise correlation,
@@ -126,7 +126,6 @@ def corr_one_exp(boc, eid, c1, c2, use_events, noise_corr_else_avg_temp_corr):
     I'm just using natural movie 1 because it exists in all experiments.
     See http://alleninstitute.github.io/AllenSDK/_static/container_session_layout.png
     """
-    data_set = boc.get_ophys_experiment_data(eid)
 
     try: 
         cidxs = data_set.get_cell_specimen_indices([c1, c2])
@@ -134,7 +133,6 @@ def corr_one_exp(boc, eid, c1, c2, use_events, noise_corr_else_avg_temp_corr):
         return None
 
     if use_events:
-      events = boc.get_ophys_experiment_events(ophys_experiment_id=eid)
       cidx1 = cidxs[0]
       cidx2 = cidxs[1]
       events1 = events[cidx1,:]
@@ -152,6 +150,7 @@ def corr_one_exp(boc, eid, c1, c2, use_events, noise_corr_else_avg_temp_corr):
     """
     stim_table = data_set.get_stimulus_table('natural_movie_one') 
     if noise_corr_else_avg_temp_corr:
+      # Noise correlation
       c1_trial_results = []
       c2_trial_results = []
       for trial_i in range(stim_table.repeat.max() + 1):
@@ -161,6 +160,13 @@ def corr_one_exp(boc, eid, c1, c2, use_events, noise_corr_else_avg_temp_corr):
           c2_trial_result = events2[start:end].mean()
           c1_trial_results.append(c1_trial_result)
           c2_trial_results.append(c2_trial_result)
+      # Subtract mean from the trial results before correlating, following Ko 2011
+      """
+      Noise correlation was found by subtracting the average response from the responses to each trial,
+      and then calculating the correlation coefficient of mean-subtracted responses
+      """
+      c1_trial_results = np.array(c1_trial_results) - np.mean(c1_trial_results)
+      c2_trial_results = np.array(c2_trial_results) - np.mean(c2_trial_results)
       corr, p_value = pearsonr(c1_trial_results, c2_trial_results)
       return corr
     else:
@@ -180,26 +186,56 @@ def corr_one_exp(boc, eid, c1, c2, use_events, noise_corr_else_avg_temp_corr):
           return None
       return np.mean(temp_corr_lists)
 
-def pairwise_dir_avg_temp_corr_one_exp(boc, ecid, eid, d1, d2, c_df, use_events, noise_corr_else_avg_temp_corr):
+def pairwise_dir_avg_temp_corr_one_exp(boc, eid, cs_d1, cs_d2, max_d, use_events, noise_corr_else_avg_temp_corr):
   """On one experiment, average temporal correlation between cell groups that prefer d1 vs d2
   Conceptually, the average correlation of spontaneous activity of a cell that likes d1 vs cell that likes d2.
   @param d1, d2 = the two directions to compare. E.g. 180.0
-  @param c_df A dataframe with: [cell_specimen_id, experiment_container_id, pref_dir].
-      You should already filter out the non-responsive / selective cells.
+  @param cs_d1 = cell specimen ids that like d1
+  @param max_d. Ignore cells that are further than this distance apart. Ko 2011 uses 50um = 64 pixels.
   """
-  c_df = c_df[c_df.experiment_container_id == ecid]
-  cs_d1 = c_df[c_df.pref_dir == d1]
-  cs_d2 = c_df[c_df.pref_dir == d2]
-
+  data_set = boc.get_ophys_experiment_data(eid)
+  events = boc.get_ophys_experiment_events(ophys_experiment_id=eid)
+  loc_x, loc_y = get_cell_locations(data_set)
   result = []
-  for c1 in cs_d1.cell_specimen_id:
-      for c2 in cs_d2.cell_specimen_id:
+  for c1 in cs_d1:
+      for c2 in cs_d2:
           if c1 == c2:
               continue
-          pair_corr = corr_one_exp(boc, eid, c1, c2, use_events, noise_corr_else_avg_temp_corr)
+          d = get_cell_distance(data_set, loc_x, loc_y, c1, c2)
+          if d is None or d > max_d:
+            continue
+          pair_corr = corr_one_exp(data_set, events, c1, c2, use_events, noise_corr_else_avg_temp_corr)
           if pair_corr is None:
               continue
           result.append(pair_corr)
   if len(result) is 0:
       return None, None, None, None
   return np.mean(result), len(result), len(cs_d1), len(cs_d2)
+
+def get_cell_locations(data_set):
+    rois = data_set.get_roi_mask_array()
+    num_cells = rois.shape[0]
+    loc_x = np.zeros((num_cells))
+    loc_y = np.zeros((num_cells))
+
+    for i in range(num_cells):
+        ind = np.where(rois[i])
+        loc_x[i] = np.mean(ind[1])
+        loc_y[i] = np.mean(ind[0])
+    return loc_x, loc_y
+
+def get_cell_distance(data_set, loc_x, loc_y, c1, c2):
+    """
+    @param loc's - See get_cell_locations.
+    @param c1, c2 - cell specimen ids
+    @return the cell distance in pixel distance.
+    Note: Each 512 pixel field of view is 400 um. For Ko 2011, we want 50 um, so use 64 pixel distance.
+    """
+    try: 
+        cidxs = data_set.get_cell_specimen_indices([c1, c2])
+    except Exception as inst:
+        return None
+    x1,y1 = loc_x[cidxs[0]], loc_y[cidxs[0]]
+    x2,y2 = loc_x[cidxs[1]], loc_y[cidxs[1]]
+    return np.sqrt((x2-x1)**2 + (y2-y1)**2)
+    
