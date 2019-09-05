@@ -100,19 +100,215 @@ def findActiveCellsGivenStartTimes(D, starts, T, zScoreDff, windowLength = 0.5, 
         peakDelays.append(delayTemp)
      
     # make lists into arrays, each col corresponds to all cells and a fixed startTime:
-    activeInds = np.vstack(activeInds)
-    zScMax = np.vstack(zScMax)
-    dffPeaks = np.vstack(dffPeaks)
-    peakDelays = np.vstack(peakDelays)
+    if len(activeInds) > 0:
+        activeInds = np.vstack(activeInds)
+    if len(zScMax) >0:
+        zScMax = np.vstack(zScMax)
+    if len(dffPeaks) > 0:
+        dffPeaks = np.vstack(dffPeaks)
+    if len(dffPeaks) > 0:
+        peakDelays = np.vstack(peakDelays)
     
     # some derived values:
-    zScMaxZeroed =  np.multiply(zScMax, activeInds)
-    activePercents = np.sum(activeInds, axis = 1) /100   # given the mahal thresh. all cells
- 
-    activeCellInds = np.where( activePercents > minActiveFraction)[0] 
+    if min(len(zScMax), len(activeInds) ) > 0:
+        zScMaxZeroed =  np.multiply(zScMax, activeInds)
+    else:
+        zScMaxZeroed = zScMax
+    if len(activeInds) > 0:
+        activePercents = np.sum(activeInds, axis = 1) /100   # given the mahal thresh. all cells
+        activeCellInds = np.where( activePercents > minActiveFraction)[0] 
+    else:
+        activePercents = []
+        activeCellInds = [] 
     
     return activeCellInds, peakDelays, activePercents, dffPeaks, zScMax, zScMaxZeroed
 
+#%%
+def plotCluesToEngagementVsNot(sess, titleStr = '', saveFigFlag = False):
+    ''' Plot various clues as to whether the mouse is engaged or checked out. Uses lick rate, reward rate, rolling d_prime, and std of windowed running speed. 
+    There are many hard-coded parameters, eg windowSize
+    
+        Parameters
+        ---------- 
+            sess: BehaviorOphysSession class instance
+                From a single experiment_id. This is eg B4 for a single mouse
+                
+            titleStr: str
+                What you want in the title of the figures
+                
+            saveFigFlag: boolean
+        
+        Returns
+        -------
+            Plot with four subplots:
+                
+            1. Lick rate vs time
+            
+            2. (smoothed) Reward rate vs time
+            
+            3. Std dev of windowed running speed vs time
+            
+            4. Rolling D_prime vs time
+            
+       Example
+       -------
+       plotCluesToEngagementVsNot(sess, titleStr = 'experiment_id = 123' )
+       
+       Charles Delahunt, delahunt@uw.edu. 4 sept 2019
+    ''' 
+    
+    import numpy as np
+    from matplotlib import pyplot as plt
+    
+    T = sess.ophys_timestamps  # np vector, ophys times 
+    rewards = sess.rewards  # panda: timestamps, volume, autorewarded
+    lickTimes = sess.licks   # panda:  timestamps# running speed and dPrime:
+    run = sess.running_speed
+    roll = sess.get_rolling_performance_df()  # fn returns dataframe
+    
+    
+    # varused for both licks and rewards:
+    Tsubsampled = T[0:-1:50]  # roughly one per second
+    
+    # plt.subplots(figsize = (10,20))
+    fig, axes = plt.subplots(nrows=4, ncols=1,figsize = (10,20), sharex = True)
+
+#df1.plot(ax=axes[0,0])
+#df2.plot(ax=axes[0,1])
+    
+    ####### 1.  get lick rates vs time and plot:
+    windowSize = 120    # seconds.  
+    lickVector = lickTimes.timestamps.values
+    lickRate = np.zeros(Tsubsampled.shape)
+    for i in range(len(Tsubsampled)):
+        lickRate[i] = np.sum(abs(lickVector - Tsubsampled[i]) < windowSize/2) / windowSize *60  # licks per minute
+         
+    #plt.figure(figsize = (10,5))
+    plt.subplot(4,1,1)
+    plt.plot(Tsubsampled, lickRate)
+    plt.xlabel('time (s)')
+    plt.ylabel('licks/min')
+    plt.title( titleStr ) # 'lick rate')
+    plt.grid(b=True)
+    plt.xlim([0,4500])
+    
+    ####### 2. Get rewards rates vs time and plot:
+    windowSize = 180    # seconds.  
+    rewardsVector = rewards.timestamps.values
+    rewardsRate = np.zeros(Tsubsampled.shape)
+    for i in range(len(Tsubsampled)):
+        rewardsRate[i] = np.sum( abs( rewardsVector - Tsubsampled[i] ) < windowSize/2 ) / windowSize*60  # licks per minute
+    
+    # smooth:
+    ham = np.hamming(20)
+    rewardsRateSmoothed = np.convolve(rewardsRate, ham, mode='same')    
+    #plt.figure(figsize = (10,5))
+    plt.subplot(4,1,2)
+    plt.plot(Tsubsampled, rewardsRateSmoothed)
+    plt.xlabel('time (s)')
+    plt.ylabel('rewards/min')
+    #plt.title('reward rate')
+    plt.grid(b=True)
+    plt.xlim([0,4500])
+    
+    ## raster plot:
+    #plt.figure(figsize = (20,5))
+    #plt.plot(rewardsVector, np.ones(rewardsVector.shape),'*')
+    #plt.title('rewards raster')
+    #plt.xlabel('time (s)')
+    
+    ####### 3.  plot variation in run speed:
+    #run.plot(x = 'timestamps', y = 'speed')     # instantaneous run speed, not so useful
+    
+    # window run:  # timestamp step = 0.02 sec, so 3000 = 1 minute
+    windowSize = 12000
+    runWindowed = run.rolling(windowSize)
+    run['runSpeedMean'] = runWindowed.mean().speed
+    run['runSpeedStd'] = runWindowed.std().speed
+    plt.subplot(4,1,3)
+    #ax = plt.gca()
+    run.plot(x = 'timestamps', y = [ 'runSpeedMean', 'runSpeedStd' ], ax = plt.gca() ) #,  title =  titleStr) # figsize = (10,5), title =  titleStr)
+    plt.grid(b=True)
+    plt.xlim([0,4500])
+    plt.ylabel('running')
+    
+    ####### 4.  rolling d prime:
+    # remove nans:
+    roll['rolling_dprime'][roll.rolling_dprime.isnull()] = 0
+    # get timestamps for each dprime:
+    roll['timesForDprimes'] = sess.trials.change_time.values
+    # plot rolling dPrime:
+    plt.subplot(4,1,4) 
+    roll.plot( x = 'timesForDprimes', y = 'rolling_dprime',  ax = plt.gca() ) #, title =  titleStr) # figsize = (10,5), title = titleStr) 
+    plt.grid(b=True)
+    plt.xlim([0,4500])
+    plt.ylabel('dPrime')
+
+    if saveFigFlag:
+        figName = titleStr + '.png'
+        fig.savefig(figName)
+        plt.close(fig)
+#%%
+def plotStatisticsOfVariableVariance(M, binEdges = 50, titleStr = ''):
+    ''' 
+    Given a matrix where each row is a cell's responses to different trials, (a) plot the histograms of each cell, (b) plot the mean vs the median (as a measure of non-gaussian-ness.
+    
+    Parameters
+    -----------
+        M : np.array
+            Array of neural responses, eg time lags or peak values, where each row is a neuron and each column is a trial
+            
+        binEdges : list OR scalar
+            Used as hist argin 'bin'.
+            
+        titleStr : str
+            To add to titles.
+        
+    Returns
+    --------
+        Two plots:
+            1. histograms of neuron response distributions, in gridded subplots
+            
+            2. scatterplot of median vs mean, as a check on skewness
+            
+    Example
+    --------
+        M = peakVal  # matrix where each row is a cell, responding to several flashes of an image
+        binEdges = np.linspace(0, 0.5, 50)
+        plotStatisticsOfVariableVariance(M, binEdges, titleStr = 'distributions')
+            
+    Charles Delahunt, delahunt@uw.edu. 4 sept 2019
+    '''
+    
+    import numpy as np
+    from matplotlib import pyplot as plt
+    
+    # 1. plot histograms in grid:
+    if len(binEdges) == 1:
+        binEdges = np.linspace(0,max(M.flatten()),50)
+        
+    plt.figure(figsize = (15, 15)) 
+    numCols = 5
+    numRows =  M.shape[0] // numCols + 1    # will give an extra row if 5 divides exactly
+    for i in range( M.shape[0] ):
+        plt.subplot( numRows, numCols, i + 1) 
+        plt.hist( M[i, ], bins = binEdges )   # leave out times, just use indices
+        plt.title( 'cell (row) index ' + str(i) ) 
+        
+    # calculate mean and median:
+    Mmean = np.mean(M, axis = 1)
+    Mmedian = np.median(M, axis = 1)
+    # delayDistStd = np.std(peakDelays, axis = 1)   # not used
+    
+    # plot mean vs median to get sense of skew:
+    plt.figure()
+    plt.plot([min(Mmean), max(Mmean)],[min(Mmean), max(Mmean)], 'g')
+    plt.plot(Mmean, Mmedian, 'k*') 
+    plt.title(titleStr + ' median vs mean')
+    plt.xlabel('mean')
+    plt.ylabel('median')
+    plt.grid(b = True)
+    plt.axis('equal')
 #%%
 
 def makeHeatmap(A, X =[], Y = [], yLabel = 'cells', xLabel = 'x', title = '', colorBarLabel = 'value', figSizeInches = (10,10) ):
