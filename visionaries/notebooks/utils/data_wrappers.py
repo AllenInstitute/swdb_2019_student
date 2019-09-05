@@ -211,3 +211,31 @@ def pairwise_dir_avg_temp_corr_one_exp(boc, ecid, eid, d1, d2, c_df, use_events,
   if len(result) is 0:
       return None, None, None, None
   return np.mean(result), len(result), len(cs_d1), len(cs_d2)
+
+def get_cell_locations(data_set):
+    rois = data_set.get_roi_mask_array()
+    num_cells = rois.shape[0]
+    loc_x = np.zeros((num_cells))
+    loc_y = np.zeros((num_cells))
+
+    for i in range(num_cells):
+        ind = np.where(rois[i])
+        loc_x[i] = np.mean(ind[1])
+        loc_y[i] = np.mean(ind[0])
+    return loc_x, loc_y
+
+def get_cell_distance(data_set, loc_x, loc_y, c1, c2):
+    """
+    @param loc's - See get_cell_locations.
+    @param c1, c2 - cell specimen ids
+    @return the cell distance in pixel distance.
+    Note: Each 512 pixel field of view is 400 um. For Ko 2011, we want 50 um, so use 64 pixel distance.
+    """
+    try: 
+        cidxs = data_set.get_cell_specimen_indices([c1, c2])
+    except Exception as inst:
+        return None
+    x1,y1 = loc_x[cidxs[0]], loc_y[cidxs[0]]
+    x2,y2 = loc_x[cidxs[1]], loc_y[cidxs[1]]
+    return np.sqrt((x2-x1)**2 + (y2-y1)**2)
+    
