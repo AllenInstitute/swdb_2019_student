@@ -5,6 +5,7 @@ import pandas as pd
 import allensdk.brain_observatory.stimulus_info as stim_info
 from scipy.stats import pearsonr
 import numpy as np
+import math
 
 def get_dg_response_filter_from_saskia():
     """
@@ -110,10 +111,16 @@ def convert_polar_dict_to_arrays(polar_series):
     return thetas, rs
 
 def avg_temp_corr_one_exp(boc, eid, c1, c2, use_events):
-    """For one experiment, get the spontaneous presentations, for each one get temporal correlation of
+    """For one experiment, get the movie presentations, for each one get temporal correlation of
     the two cells, then average all these temporal correlations.
+    Note about spontaneous:
     I checked that sesh A and B just have 1 spontaenous preso, session C have 2.
     So, only the big grey chunks are counted. The small ones aren't.
+    Note about movies:
+    Each row in stim table for the movie is a frame of a particular trial
+    Trial number = repeat. 
+    I'm just using natural movie 1 because it exists in all experiments.
+    See http://alleninstitute.github.io/AllenSDK/_static/container_session_layout.png
     """
     data_set = boc.get_ophys_experiment_data(eid)
 
@@ -133,16 +140,24 @@ def avg_temp_corr_one_exp(boc, eid, c1, c2, use_events):
       events1 = dff[0,:]
       timestamps, dff = data_set.get_dff_traces(cell_specimen_ids=[c2])
       events2 = dff[0,:]
-    stim_table = data_set.get_stimulus_table('spontaneous') 
-
+    """
+    'natural_movie_one',
+    'natural_movie_three',
+    'natural_movie_two',
+    'spontaneous'
+    """
+    stim_table = data_set.get_stimulus_table('natural_movie_one') 
+    # spontaneous
     # Each item is a temporal correlation of a single spontaneous presentation
     temp_corr_lists = []
-    for i in range(len(stim_table)):
-        start = stim_table.start[i]
-        end = stim_table.end[i]
+    for trial_i in range(stim_table.repeat.max() + 1):
+        start = stim_table[stim_table.repeat==trial_i].start.min()
+        end = stim_table[stim_table.repeat==trial_i].start.max()
         ts1 = events1[start:end]
         ts2 = events2[start:end]
         temp_corr, p_value = pearsonr(ts1, ts2)
+        if math.isnan(temp_corr):
+            continue
         temp_corr_lists.append(temp_corr)
     if len(temp_corr_lists) == 0:
         return None
