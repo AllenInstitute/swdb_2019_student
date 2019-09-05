@@ -186,15 +186,17 @@ def corr_one_exp(data_set, events, c1, c2, use_events, noise_corr_else_avg_temp_
           return None
       return np.mean(temp_corr_lists)
 
-def pairwise_dir_avg_temp_corr_one_exp(boc, ecid, eid, d1, d2, c_df, use_events, noise_corr_else_avg_temp_corr):
+def pairwise_dir_avg_temp_corr_one_exp(boc, ecid, eid, d1, d2, c_df, max_d, use_events, noise_corr_else_avg_temp_corr):
   """On one experiment, average temporal correlation between cell groups that prefer d1 vs d2
   Conceptually, the average correlation of spontaneous activity of a cell that likes d1 vs cell that likes d2.
   @param d1, d2 = the two directions to compare. E.g. 180.0
   @param c_df A dataframe with: [cell_specimen_id, experiment_container_id, pref_dir].
       You should already filter out the non-responsive / selective cells.
+  @param max_d. Ignore cells that are further than this distance apart. Ko 2011 uses 50um = 64 pixels.
   """
   data_set = boc.get_ophys_experiment_data(eid)
   events = boc.get_ophys_experiment_events(ophys_experiment_id=eid)
+  loc_x, loc_y = get_cell_locations(data_set)
   c_df = c_df[c_df.experiment_container_id == ecid]
   cs_d1 = c_df[c_df.pref_dir == d1]
   cs_d2 = c_df[c_df.pref_dir == d2]
@@ -204,6 +206,9 @@ def pairwise_dir_avg_temp_corr_one_exp(boc, ecid, eid, d1, d2, c_df, use_events,
       for c2 in cs_d2.cell_specimen_id:
           if c1 == c2:
               continue
+          d = get_cell_distance(data_set, loc_x, loc_y, c1, c2)
+          if d is None or d > max_d:
+            continue
           pair_corr = corr_one_exp(data_set, events, c1, c2, use_events, noise_corr_else_avg_temp_corr)
           if pair_corr is None:
               continue
