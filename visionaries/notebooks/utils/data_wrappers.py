@@ -110,12 +110,16 @@ def convert_polar_dict_to_arrays(polar_series):
         rs.append(r)
     return thetas, rs
 
-def avg_temp_corr_one_exp(boc, eid, c1, c2, use_events):
-    """For one experiment, get the movie presentations, for each one get temporal correlation of
-    the two cells, then average all these temporal correlations.
+def corr_one_exp(boc, eid, c1, c2, use_events, noise_corr_else_avg_temp_corr):
+    """Calculate one of [noise correlatio, trial-avg temporal corr] for movie presos for one experiment.
+    @param use_events if True, use events, else use dff
+    @param do_noise_corr if True, get all the presos, then do noise correlation,
+    else, average out temporal correlation for each preso.
+
     Note about spontaneous:
     I checked that sesh A and B just have 1 spontaenous preso, session C have 2.
     So, only the big grey chunks are counted. The small ones aren't.
+
     Note about movies:
     Each row in stim table for the movie is a frame of a particular trial
     Trial number = repeat. 
@@ -147,23 +151,36 @@ def avg_temp_corr_one_exp(boc, eid, c1, c2, use_events):
     'spontaneous'
     """
     stim_table = data_set.get_stimulus_table('natural_movie_one') 
-    # spontaneous
-    # Each item is a temporal correlation of a single spontaneous presentation
-    temp_corr_lists = []
-    for trial_i in range(stim_table.repeat.max() + 1):
-        start = stim_table[stim_table.repeat==trial_i].start.min()
-        end = stim_table[stim_table.repeat==trial_i].start.max()
-        ts1 = events1[start:end]
-        ts2 = events2[start:end]
-        temp_corr, p_value = pearsonr(ts1, ts2)
-        if math.isnan(temp_corr):
-            continue
-        temp_corr_lists.append(temp_corr)
-    if len(temp_corr_lists) == 0:
-        return None
-    return np.mean(temp_corr_lists)
+    if noise_corr_else_avg_temp_corr:
+      c1_trial_results = []
+      c2_trial_results = []
+      for trial_i in range(stim_table.repeat.max() + 1):
+          start = stim_table[stim_table.repeat==trial_i].start.min()
+          end = stim_table[stim_table.repeat==trial_i].start.max()
+          c1_trial_result = events1[start:end].mean()
+          c2_trial_result = events2[start:end].mean()
+          c1_trial_results.append(c1_trial_result)
+          c2_trial_results.append(c2_trial_result)
+      corr, p_value = pearsonr(c1_trial_results, c2_trial_results)
+      return corr
+    else:
+      # do avg of temporal correlation
+      # Each item is a temporal correlation of a single spontaneous presentation
+      temp_corr_lists = []
+      for trial_i in range(stim_table.repeat.max() + 1):
+          start = stim_table[stim_table.repeat==trial_i].start.min()
+          end = stim_table[stim_table.repeat==trial_i].start.max()
+          ts1 = events1[start:end]
+          ts2 = events2[start:end]
+          temp_corr, p_value = pearsonr(ts1, ts2)
+          if math.isnan(temp_corr):
+              continue
+          temp_corr_lists.append(temp_corr)
+      if len(temp_corr_lists) == 0:
+          return None
+      return np.mean(temp_corr_lists)
 
-def pairwise_dir_avg_temp_corr_one_exp(boc, ecid, eid, d1, d2, c_df, use_events=True):
+def pairwise_dir_avg_temp_corr_one_exp(boc, ecid, eid, d1, d2, c_df, use_events, noise_corr_else_avg_temp_corr):
   """On one experiment, average temporal correlation between cell groups that prefer d1 vs d2
   Conceptually, the average correlation of spontaneous activity of a cell that likes d1 vs cell that likes d2.
   @param d1, d2 = the two directions to compare. E.g. 180.0
@@ -179,7 +196,7 @@ def pairwise_dir_avg_temp_corr_one_exp(boc, ecid, eid, d1, d2, c_df, use_events=
       for c2 in cs_d2.cell_specimen_id:
           if c1 == c2:
               continue
-          pair_corr = avg_temp_corr_one_exp(boc, eid, c1, c2, use_events)
+          pair_corr = corr_one_exp(boc, eid, c1, c2, use_events, noise_corr_else_avg_temp_corr)
           if pair_corr is None:
               continue
           result.append(pair_corr)
