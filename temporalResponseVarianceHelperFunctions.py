@@ -39,7 +39,8 @@ def findActiveCellsGivenStartTimes(D, starts, T, zScoreDff, windowLength = 0.5, 
     Returns
     -------
     activeCellInds: np column vector
-        m x 1, where m = number of active cells. Indices of cells that were active.
+        m x 1, where m = number of active cells. Row indices of cells that were active. 
+        !!!! CAUTION !!!! These are NOT 'cell_specimen_id' values
         
     peakDelays: np.array
         n x s. Time lags between start time and cell peak value, for all cells and starts.
@@ -60,14 +61,19 @@ def findActiveCellsGivenStartTimes(D, starts, T, zScoreDff, windowLength = 0.5, 
     -------
     (visual behavior dataset)
     # prepare inputs:
-    D = np.vstack(session.dff_traces.values)    # np array of one experiment's dff traces 
+    dffTable = session.dff_traces
+    D = np.vstack(dffTable.dff_traces.values)    # np array of one experiment's dff traces 
     starts = imageTimes.loc[ (imageTimes.image_name == im) & (imageTimes.change == False) ].start_time.values
     T = session.ophys_timestamps.values    # np vector of the experiment's timestamps        
     W = np.logical_and(T > 30, T < 300)   # np boolean vector with 1s for timestamps > 30 seconds and < 5 minutes
     zScoreDff = transformToLikelihoodMeasure( D, W )        
     
     # apply the function with default parameters:
-    activeCellInds, peakDelays, activePercents, dffPeaks, zScMax, zScMaxZeroed = findActiveCellsGivenStartTimes(D, starts, T, zScoreDff)        
+    activeCellInds, peakDelays, activePercents, dffPeaks, zScMax, zScMaxZeroed = findActiveCellsGivenStartTimes(D, starts, T, zScoreDff)
+    
+    # get the cell_specimen_ids using the activeCellInds:
+    cellIds = dffTable.index.values
+    activeCellSpecimenIds = cellIds[activeCellInds]       
     
     ---------    
     Sept 2 2019
