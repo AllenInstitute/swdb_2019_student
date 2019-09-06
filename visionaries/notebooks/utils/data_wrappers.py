@@ -155,25 +155,44 @@ def corr_one_exp(data_set, events, c1, c2, use_events, corr_type):
     stim_table = data_set.get_stimulus_table('natural_movie_one') 
     if corr_type == 'NOISE_CORR':
       # Noise correlation
+      stim_starts, min_window_size = get_starts_and_min_window_size(stim_table)
+
+      # For each cell, get the average timeseries.
+      c1_tses = []
+      c2_tses = []
+      for stim_start in stim_starts:
+        start = stim_start
+        end = start + min_window_size
+        c1_tses.append(events1[start:end])
+        c2_tses.append(events2[start:end])
+      c1_tsavg = avg_ts(c1_tses)
+      c2_tsavg = avg_ts(c2_tses)
+      mean_sub_c1_tses = []
+      mean_sub_c2_tses = []
+
+      # For each cell, for each trial, deduct the avg timeseries.
+      for i in range(len(c1_tses)):
+        mean_sub_c1_ts = c1_tses[i] - c1_tsavg
+        mean_sub_c2_ts = c2_tses[i] - c2_tsavg
+        mean_sub_c1_tses.append(mean_sub_c1_ts)
+        mean_sub_c2_tses.append(mean_sub_c2_ts)
+
+      # For each frame, get noise correlation
       # There will be one noise corr value per frame.
-      c1_trial_results = []
-      c2_trial_results = []
-      for trial_i in range(stim_table.repeat.max() + 1):
-          start = stim_table[stim_table.repeat==trial_i].start.min()
-          end = stim_table[stim_table.repeat==trial_i].end.max()
-          c1_trial_result = events1[start:end].mean()
-          c2_trial_result = events2[start:end].mean()
-          c1_trial_results.append(c1_trial_result)
-          c2_trial_results.append(c2_trial_result)
-      # Subtract mean from the trial results before correlating, following Ko 2011
-      """
-      Noise correlation was found by subtracting the average response from the responses to each trial,
-      and then calculating the correlation coefficient of mean-subtracted responses
-      """
-      c1_trial_results = np.array(c1_trial_results) - np.mean(c1_trial_results)
-      c2_trial_results = np.array(c2_trial_results) - np.mean(c2_trial_results)
-      corr, p_value = pearsonr(c1_trial_results, c2_trial_results)
-      return corr
+      noise_corrs = []
+      for frame in range(min_window_size):
+        c1_same_frames = []
+        c2_same_frames = []
+        for trial_i in range(len(stim_starts)):
+          c1_same_frames.append(mean_sub_c1_tses[trial_i][frame])
+          c2_same_frames.append(mean_sub_c2_tses[trial_i][frame])
+        corr, p_value = pearsonr(c1_same_frames, c2_same_frames)
+        if math.isnan(corr):
+          continue
+        noise_corrs.append(corr)
+      if len(noise_corrs) == 0:
+        return None
+      return np.mean(noise_corrs)
     elif corr_type == 'AVG_TEMP_CORR':
       # do avg of temporal correlation
       # Each item is a temporal correlation of a single spontaneous presentation
@@ -304,3 +323,9 @@ def get_smoothed_avg(ts, frame_window):
             break
         cur_sum += ts[next_ind]
     return new_ts
+
+def avg_ts(tses):
+  ts_tot = np.zeros(len(tses[0]))
+  for ts in tses:
+      ts_tot += ts
+  return ts_tot / len(tses)
