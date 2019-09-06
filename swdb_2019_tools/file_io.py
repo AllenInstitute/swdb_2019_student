@@ -129,7 +129,7 @@ def get_multi_session_flash_response_df_for_container(container_id, cache):
     return df
 
 
-def get_multi_session_flash_response_df_for_experiment_type(cre_line, imaging_depth):
+def get_multi_session_flash_response_df_for_experiment_type(cre_line, imaging_depth, cache):
     expt_type = cre_line.split('-')[0]+'_'+str(imaging_depth)
     manifest = cache.experiment_table
     container_ids = manifest[(manifest.cre_line==cre_line)&(manifest.imaging_depth==imaging_depth)].container_id.unique()
