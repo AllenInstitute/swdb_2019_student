@@ -62,9 +62,9 @@ def findActiveCellsGivenStartTimes(D, starts, T, zScoreDff, windowLength = 0.5, 
     (visual behavior dataset)
     # prepare inputs:
     dffTable = session.dff_traces
-    D = np.vstack(dffTable.dff_traces.values)    # np array of one experiment's dff traces 
+    D = np.vstack(dffTable.dff.values)    # np array of one experiment's dff traces 
     starts = imageTimes.loc[ (imageTimes.image_name == im) & (imageTimes.change == False) ].start_time.values
-    T = session.ophys_timestamps.values    # np vector of the experiment's timestamps        
+    T = session.ophys_timestamps    # np vector of the experiment's timestamps        
     W = np.logical_and(T > 30, T < 300)   # np boolean vector with 1s for timestamps > 30 seconds and < 5 minutes
     zScoreDff = transformToLikelihoodMeasure( D, W )        
     
@@ -86,7 +86,7 @@ def findActiveCellsGivenStartTimes(D, starts, T, zScoreDff, windowLength = 0.5, 
     zScMax = []
     dffPeaks = []
     peakDelays = []
-    # go through starts:
+    # go through starts to get the peak and delay (time to peak) for each neuron in a window after that start:
     for t in starts: 
         window = np.logical_and( T >= t, T < t + windowLength).reshape(1,-1)
         window = np.where(window == 1)[1]
@@ -107,13 +107,13 @@ def findActiveCellsGivenStartTimes(D, starts, T, zScoreDff, windowLength = 0.5, 
      
     # make lists into arrays, each col corresponds to all cells and a fixed startTime:
     if len(activeInds) > 0:
-        activeInds = np.vstack(activeInds)
+        activeInds = np.vstack(activeInds).T      # transpose so it is numCells x numImages. Also transpose others 
     if len(zScMax) >0:
-        zScMax = np.vstack(zScMax)
+        zScMax = np.vstack(zScMax).T
     if len(dffPeaks) > 0:
-        dffPeaks = np.vstack(dffPeaks)
+        dffPeaks = np.vstack(dffPeaks).T
     if len(dffPeaks) > 0:
-        peakDelays = np.vstack(peakDelays)
+        peakDelays = np.vstack(peakDelays).T
     
     # some derived values:
     if min(len(zScMax), len(activeInds) ) > 0:
@@ -263,6 +263,92 @@ def plotCluesToEngagementVsNot(sess, titleStr = '', saveFigFlag = False):
         
     # run.plot(x = 'timestamps', y = 'speed')     # instantaneous run speed, useful to check effect of clipping
     
+#%%
+def calculateAsymmetricDistributionStats(D):
+    """
+    Given a matrix D, where each row is a cell's responses and each column is a trial (eg image flash), calculate two different 2-sided asymmetrical distributions one centered around the mean and the other around the median. Return 6 vectors: {mean, left std dev, right std dev}  and {median, left std, right std}, for each row
+    
+    Parameters
+        ----------
+        D: np.array
+            n x t. Each row is one unit's activity timecourse, each column corresponds to a timestamp.
+            
+            
+        Returns
+        -------
+        meanVals: np column vector
+        
+        meanStdLeft: np column vector
+        
+        meanStdRight: np column vector
+        
+        medianVals: np column vector
+        
+        medianStdLeft: np column vector
+        
+        medianStdRight: np column vector
+            
+        Example
+        -------    
+        # let D = m x n array of m cells to n image flashes
+        meanVals, meanStdLeft, meanStdRight, medianVals, medianStdLeft, medianStdRight = calculateAsymmetricDistributionStats(D)      
+        
+        ---------    
+        Sept 6 2019
+        Charles Delahunt, delahunt@uw.edu 
+      
+    """
+    import numpy as np
+    
+    d = D.shape[0]
+    
+    # allocate matrices:
+    meanVals = np.zeros([d, 1])
+    meanStdLeft = np.zeros([d, 1])
+    meanStdRight = np.zeros([d, 1])
+    medianVals = np.zeros([d, 1])
+    medianStdLeft = np.zeros([d, 1])
+    medianStdRight = np.zeros([d, 1])
+    
+    # mean and median can be done on full matrix
+    meanVals = np.mean(D, axis = 1)
+    medianVals = np.median(D, axis = 1)
+    
+    # for 2-sided stds, loop through rows:
+    for j in range(d): 
+        r = D[j, ]    # the j'th row   
+        # two-sided st devs relative to the mean:       
+        mu = meanVals[j]
+                
+        bL = np.where(r <= mu)   # if many elements of r == mu, this underestimates stds. Assume this is not an issue for this particular D
+        bL = bL[0]
+        bL = r[bL] - mu
+        bLBal = [ -bL, bL]   # combine to make a symmetric (balanced) distribution
+        meanStdLeft[j] = np.std(bLBal) 
+        
+        bR = np.where(r >= mu)                    
+        bR = bR[0]
+        bR = r[bR] - mu
+        bRBal = [ -bR, bR]
+        meanStdRight[j] = np.std(bRBal)
+        
+        # two-sided st devs relative to the median: 
+        med = medianVals[j] 
+        
+        bL = np.where(r <= med)   # if many elements of r == mu, this underestimates stds. Assume this is not an issue for this particular D
+        bL = bL[0]
+        bL = r[bL] - med
+        bLBal = [ -bL, bL]
+        medianStdLeft[j] = np.std(bLBal) 
+        
+        bR = np.where(r >= med)                    
+        bR = bR[0]
+        bR = r[bR] - med
+        bRBal = [ -bR, bR]
+        medianStdRight[j] = np.std(bRBal)
+    
+    return meanVals, meanStdLeft, meanStdRight, medianVals, medianStdLeft, medianStdRight 
+
 #%%
 def plotStatisticsOfVariableVariance(M, binEdges = 50, titleStr = ''):
     ''' 
