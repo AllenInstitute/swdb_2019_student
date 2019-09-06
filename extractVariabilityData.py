@@ -64,7 +64,7 @@ indices = expList.index.values
 numImsSeenCheckedOut = np.zeros([ len(exIdList), 9] )    # we know there are 9 ims ( 8 + 'omitted')
 numImsSeenEngaged = np.zeros([ len(exIdList), 9 ])
 
-for i in range(expList.shape[0]):
+for i in range(1):  # (expList.shape[0]):
     # get the experiment_id
     ind = indices[i]
     exId = expList.ophys_experiment_id[ind]
@@ -116,10 +116,171 @@ for i in range(expList.shape[0]):
 2. calc active pixels on B4
 3. On B6, calc stats using active pixels from B4
 
+'''
+exIdList = expList.ophys_experiment_id.values    # rows are indexed by 1:n
+indices = expList.index.values      # these are the indices of the rows in the panda 'expList'
+minSeenThreshold = 9
 
+# add many columns for each image to expList, to store results matrices:
+combinedImageList = ['im000', 'im106', 'im075', 'im073', 'im045', 'im054', 'im031', 'im035', 'im061', 'im062', 'im063', 'im065', 'im066', 'im069', 'im077','im085', 'omitted']
+for i in range(len(combinedImageList)):
+    expList['activeCellIds_' + combinedImageList[i] ] = ''
+for i in range(len(combinedImageList)):
+    expList['engagedDelays_' + combinedImageList[i] ] = ''
+for i in range(len(combinedImageList)):
+    expList['engagedPeaks_' + combinedImageList[i] ] = ''
+for i in range(len(combinedImageList)):
+    expList['checkedOutDelays_' + combinedImageList[i] ] = ''
+for i in range(len(combinedImageList)):
+    expList['checkedOutPeaks_' + combinedImageList[i] ] = ''    
 
-
-
+#%%
+''' Loop through the experiments. We only process A1 and B4 (A1 includes processing A3, B4 includes processing B6)'''    
+for i in range(expList.shape[0]):
+    
+    processEngagedCaseFlag = False
+    processCheckedOutCaseFlag = False   
+    ind = indices[i]
+    
+    if expList.valid_cell_matching[ind].values:      # ignore experiments without valid cell matching 
+        exId = expList.ophys_experiment_id[ind].value
+        # identify if this is A1, B4, etc  
+        sessionNumber = expList.stage_name[ind] 
+        animal = expList.animal_name[ind]
+        # imageSet = expList.image_set[ind]  # not needed
+        if sessionNumber =='OPHYS_1_images_A':
+            # find matching active session:
+            matchingExId = expList.loc[ (expList.animal == animal) & (expList.ophys_experiment_id == 'OPHYS_3_images_A') & (expList.valid_cell_matching == True), ['ophys_experiment_id' ] ].values
+        if sessionNumber == 'OPHYS_4_images_B':
+            # find matching active session:
+            matchingExId = expList.loc[ (expList.animal == animal) & (expList.ophys_experiment_id == 'OPHYS_6_images_B') & (expList.valid_cell_matching == True), ['ophys_experiment_id' ] ].values
+        # see if there are enough checked out image views:
+        # NOTE: This assumes expList has columns with counts of imagesSeen (inserted above)
+        if len(matchingExId) > 0:    # ie there is a legit match
+            minSeen1 = np.minimum(expList.loc[expList.ophys_experiment_id == exId, 'engagedImCounts' ].values)
+            minSeen2 = np.minimum(expList.loc[expList.ophys_experiment_id == matchingExId, 'engagedImCounts' ].values)
+            processEngagedCaseFlag = np.minimum([minSeen1, minSeen2]) >= minSeenThreshold
+            minSeen1 = np.minimum(expList.loc[expList.ophys_experiment_id == exId, 'checkedOutImCounts' ].values)
+            minSeen2 = np.minimum(expList.loc[expList.ophys_experiment_id == matchingExId, 'checkedOutImCounts' ].values)
+            processCheckedOutCaseFlag = np.minimum([minSeen1, minSeen2]) >= minSeenThreshold
+    # we now know whether to process the two cases for this pair
+    
+    if processEngagedCaseFlag or processCheckedOutCaseFlag:  # have to load session if either is True
+        # load the first session
+        sess = cache.get_session(exId)
+        stimPres = sess.stimulus_presentations       
+        
+        dffTable = sess.dff_traces
+        D = np.vstack(dffTable.dff_traces.values)    # np array of one experiment's dff traces
+        cellIds = dffTable.index.values
+        T = sess.ophys_timestamps.values    # np vector of the experiment's timestamps
+        # calc z-score matrix:
+        startGrey =  np.logical_and(T < 4.5*60, T > 0.67*60 ) 
+        endGrey = np.logical_and( T > max(T) - 9.6*60, T < max(T) - 5.6*60 )    
+        W = startGrey + endGrey   # add the booleans
+        zScoreDff, spontMean, spontStd = transformFiringRatesToLikelihoodMeasure( D, W )
+        checkoutTime = expList[ expList.ophys_experiment_id  == exId, 'checkoutTime' ].values 
+        
+        # loop through images, getting stats for each:
+        imList = np.sort( np.unique(stimPres.image_name.values) )  # ascending order
+        # engaged case:
+        if processEngagedCaseFlag:
+            tag = 'engaged'
+            for i2 in range(len(imList)):
+                imStarts = stimPres.loc[ (stimPres.image_name == imList) & (stimPres.change == False) ].start_time.values
+                imStarts = imStarts[imStarts < checkoutTime ]
+                # special mouse:
+                if exId == 864370674:                          
+                    imStarts = imStarts[np.logical_and( imStarts < 1000, startTimes > 2000) ]    # note direction of inequalities for engaged and for checked out (below)
+                    
+                # apply the function with default parameters:
+                activeCellRowIndices, peakDelays, ig2, dffPeaks, ig3, ig4 = findActiveCellsGivenStartTimes( D, imStarts, T, zScoreDff )                
+                # get the cell_specimen_ids using the activeCellInds:
+                activeCellIds = cellIds[activeCellRowIndices] 
+                # set aside for use on second session:
+                engagedActiveCellIds = activeCellIds
+                expList.loc[ expList.ophys_experiment_id == exId, tag + 'ActiveCellIds_' + imList[i2] ] = activeCellIds 
+                expList.loc[ expList.ophys_experiment_id == exId, tag + 'Delays_' + imList[i2] ] =  peakDelays[activeCellRowIndices]
+                expList.loc[ expList.ophys_experiment_id == exId, tag + 'Peaks_' + imList[i2] ] =  dffPeaks[activeCellRowIndices]
+        # checked out case is identical
+        if processCheckedOutCaseFlag:
+            tag = 'checkedOut'
+            for i2 in range(len(imList)):
+                imStarts = stimPres.loc[ (stimPres.image_name == imList) & (stimPres.change == False) ].start_time.values
+                imStarts = imStarts[imStarts > checkoutTime ]
+                # special mouse:
+                if exId == 864370674:                          
+                    imStarts = imStarts[np.logical_and( imStarts > 1000, startTimes < 2000) ] 
+                    
+                # apply the function with default parameters:
+                activeCellRowIndices, peakDelays, ig2, dffPeaks, ig3, ig4 = findActiveCellsGivenStartTimes( D, imStarts, T, zScoreDff )                
+                # get the cell_specimen_ids using the activeCellInds:
+                activeCellIds = cellIds[activeCellRowIndices]  
+                # set aside for use on second session:
+                checkedOutActiveCellIds = activeCellIds
+                expList.loc[ expList.ophys_experiment_id == exId, tag + 'ActiveCellIds_' + imList[i2] ] = activeCellIds 
+                expList.loc[ expList.ophys_experiment_id == exId, tag + 'Delays_' + imList[i2] ] =  peakDelays[activeCellRowIndices]
+                expList.loc[ expList.ophys_experiment_id == exId, tag + 'Peaks_' + imList[i2] ] =  dffPeaks[activeCellRowIndices]
+                
+        # Now repeat with the second session. The key difference is that we specify the active cells up front. We then restrict the dff matrix that goes into 'findActiveCells etc
+        
+        # load the second session
+        sess = cache.get_session(matchingExId)
+        stimPres = sess.stimulus_presentations       
+        
+        dffTable = sess.dff_traces
+        D = np.vstack(dffTable.dff_traces.values)    # np array of one experiment's dff traces
+        
+        T = sess.ophys_timestamps.values    # np vector of the experiment's timestamps
+        # calc z-score matrix:
+        startGrey =  np.logical_and(T < 4.5*60, T > 0.67*60 ) 
+        endGrey = np.logical_and( T > max(T) - 9.6*60, T < max(T) - 5.6*60 )    
+        W = startGrey + endGrey   # add the booleans
+        zScoreDff, spontMean, spontStd = transformFiringRatesToLikelihoodMeasure( D, W )
+        checkoutTime = expList[ expList.ophys_experiment_id  == exId, 'checkoutTime' ].values 
+        
+        # loop through images, getting stats for each:
+        imList = np.sort( np.unique(stimPres.image_name.values) )  # ascending order
+        # engaged case:
+        if processEngagedCaseFlag:
+            tag = 'engaged'
+            for i2 in range(len(imList)):
+                imStarts = stimPres.loc[ (stimPres.image_name == imList) & (stimPres.change == False) ].start_time.values
+                imStarts = imStarts[imStarts < checkoutTime ]
+                # special mouse:
+                if exId == 864370674:                          
+                    imStarts = imStarts[np.logical_and( imStarts < 1000, startTimes > 2000) ]    # note direction of inequalities for engaged and for checked out (below)
+                
+                # restrict D to active cells from first session
+                DActiveOnly  = D[ np.isin( dffTable.index.values, engagedActiveCellIds ), ]
+                # apply the function with default parameters:
+                ig1, peakDelays, ig2, dffPeaks, ig3, ig4 = findActiveCellsGivenStartTimes( DActiveOnly, imStarts, T, zScoreDff )                
+                
+                expList.loc[ expList.ophys_experiment_id == exId, tag + 'ActiveCellIds_' + imList[i2] ] = engagedActiveCellIds 
+                expList.loc[ expList.ophys_experiment_id == exId, tag + 'Delays_' + imList[i2] ] =  peakDelays   # we save all the rows
+                expList.loc[ expList.ophys_experiment_id == exId, tag + 'Peaks_' + imList[i2] ] =  dffPeaks
+        # checked out case is identical
+        if processCheckedOutCaseFlag:
+            tag = 'checkedOut'
+            for i2 in range(len(imList)):
+                imStarts = stimPres.loc[ (stimPres.image_name == imList) & (stimPres.change == False) ].start_time.values
+                imStarts = imStarts[imStarts > checkoutTime ]
+                # special mouse:
+                if exId == 864370674:                          
+                    imStarts = imStarts[np.logical_and( imStarts > 1000, startTimes < 2000) ] 
+                    
+                # restrict D to active cells from first session
+                DActiveOnly  = D[ np.isin( dffTable.index.values, checkedOutActiveCellIds ), ]
+                # apply the function with default parameters:
+                ig1, peakDelays, ig2, dffPeaks, ig3, ig4 = findActiveCellsGivenStartTimes( DActiveOnly, imStarts, T, zScoreDff )                 
+                # get the cell_specimen_ids using the activeCellInds:
+                activeCellIds = cellIds[activeCellRowIndices] 
+                expList.loc[ expList.ophys_experiment_id == exId, tag + 'ActiveCellIds_' + imList[i2] ] = checkedOutActiveCellIds 
+                expList.loc[ expList.ophys_experiment_id == exId, tag + 'Delays_' + imList[i2] ] =  peakDelays
+                expList.loc[ expList.ophys_experiment_id == exId, tag + 'Peaks_' + imList[i2] ] =  dffPeaks
+#%%                
+''' Save this dataframe for future analysis'''
+expList.to_csv('experimentTableWithCollectedData_1')
 
 
 
