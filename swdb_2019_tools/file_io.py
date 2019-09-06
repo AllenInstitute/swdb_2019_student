@@ -131,12 +131,14 @@ def get_multi_session_flash_response_df_for_container(container_id, cache):
 
 def get_multi_session_flash_response_df_for_experiment_type(cre_line, imaging_depth):
     expt_type = cre_line.split('-')[0]+'_'+str(imaging_depth)
+    manifest = cache.experiment_table
     container_ids = manifest[(manifest.cre_line==cre_line)&(manifest.imaging_depth==imaging_depth)].container_id.unique()
     save_dir = r'/home/ec2-user/SageMaker/shared/multi_session_dataframes'
 
     data_df = pd.DataFrame()
     timestamps_df = pd.DataFrame()
     for container_id in container_ids:
+        print(container_id)
         data_suffix = str(container_id)+'_data'
         timestamps_suffix = str(container_id)+'_timestamps'
         data_path = os.path.join(save_dir, 'image_flash_response_df_'+expt_type+'_'+data_suffix+'.h5')
