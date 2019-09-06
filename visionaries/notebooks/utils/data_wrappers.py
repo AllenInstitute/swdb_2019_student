@@ -234,6 +234,8 @@ def pairwise_dir_avg_temp_corr_one_exp(boc, eid, cs_d1, cs_d2, max_d, use_events
   events = boc.get_ophys_experiment_events(ophys_experiment_id=eid)
   loc_x, loc_y = get_cell_locations(data_set)
   result = []
+  max_pair_corr = -1
+  best_pair = None
   for c1 in cs_d1:
       for c2 in cs_d2:
           if c1 == c2:
@@ -245,9 +247,12 @@ def pairwise_dir_avg_temp_corr_one_exp(boc, eid, cs_d1, cs_d2, max_d, use_events
           if pair_corr is None:
               continue
           result.append(pair_corr)
+          if pair_corr > max_pair_corr:
+            max_pair_corr = pair_corr
+            best_pair = (c1,c2)
   if len(result) is 0:
-      return None, None, None
-  return result, len(cs_d1), len(cs_d2)
+      return None, None, None, None, None
+  return result, len(cs_d1), len(cs_d2), best_pair, max_pair_corr
 
 def get_cell_locations(data_set):
     rois = data_set.get_roi_mask_array()
