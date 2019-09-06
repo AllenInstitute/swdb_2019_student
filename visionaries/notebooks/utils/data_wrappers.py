@@ -239,8 +239,8 @@ def pairwise_dir_avg_temp_corr_one_exp(boc, eid, cs_d1, cs_d2, max_d, use_events
               continue
           result.append(pair_corr)
   if len(result) is 0:
-      return None, None, None, None
-  return np.mean(result), len(result), len(cs_d1), len(cs_d2)
+      return None, None, None
+  return result, len(cs_d1), len(cs_d2)
 
 def get_cell_locations(data_set):
     rois = data_set.get_roi_mask_array()
