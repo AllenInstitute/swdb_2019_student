@@ -159,7 +159,7 @@ def corr_one_exp(data_set, events, c1, c2, use_events, corr_type):
       c2_trial_results = []
       for trial_i in range(stim_table.repeat.max() + 1):
           start = stim_table[stim_table.repeat==trial_i].start.min()
-          end = stim_table[stim_table.repeat==trial_i].start.max()
+          end = stim_table[stim_table.repeat==trial_i].end.max()
           c1_trial_result = events1[start:end].mean()
           c2_trial_result = events2[start:end].mean()
           c1_trial_results.append(c1_trial_result)
@@ -179,7 +179,7 @@ def corr_one_exp(data_set, events, c1, c2, use_events, corr_type):
       temp_corr_lists = []
       for trial_i in range(stim_table.repeat.max() + 1):
           start = stim_table[stim_table.repeat==trial_i].start.min()
-          end = stim_table[stim_table.repeat==trial_i].start.max()
+          end = stim_table[stim_table.repeat==trial_i].end.max()
           ts1 = events1[start:end]
           ts2 = events2[start:end]
           temp_corr, p_value = pearsonr(ts1, ts2)
@@ -197,17 +197,17 @@ def corr_one_exp(data_set, events, c1, c2, use_events, corr_type):
       min_window_size = stim_table.end.max()
       for trial_i in range(stim_table.repeat.max() + 1):
           start = stim_table[stim_table.repeat==trial_i].start.min()
-          end = stim_table[stim_table.repeat==trial_i].start.max()
+          end = stim_table[stim_table.repeat==trial_i].end.max()
           starts.append(start)
           min_window_size = min(min_window_size, end-start)
       totalts1 = np.zeros(min_window_size)
       totalts2 = np.zeros(min_window_size)
       num_trial_processed = 0
-      for start in starts :
-          end = start + min_window_size
-          totalts1 += events1[start:end]
-          totalts2 += events2[start:end]
-          num_trial_processed += 1
+      for start in starts:
+        end = start + min_window_size
+        totalts1 += events1[start:end]
+        totalts2 += events2[start:end]
+        num_trial_processed += 1
       totalts1 /= num_trial_processed
       totalts2 /= num_trial_processed
       corr, p_value = pearsonr(totalts1, totalts2)
