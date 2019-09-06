@@ -145,7 +145,7 @@ def render_actors_360(actors, directory, nframes, camera_start =None, start_fram
         cameras.append(angle_cam)
         times.append(k)
         
-    return vtk_movie(actors, directory,
+    return render_movie(actors, directory,
                      times = times,
                      cameras=cameras,
                      video_height=video_height,
