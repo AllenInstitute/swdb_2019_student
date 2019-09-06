@@ -127,3 +127,26 @@ def get_multi_session_flash_response_df_for_container(container_id, cache):
     timestamps_df = pd.concat([timestamps_df, timestamps_tmp])
     df = data_df.merge(timestamps_df, how='right', on=['experiment_id','flash_id'])
     return df
+
+
+def get_multi_session_flash_response_df_for_experiment_type(cre_line, imaging_depth):
+    expt_type = cre_line.split('-')[0]+'_'+str(imaging_depth)
+    container_ids = manifest[(manifest.cre_line==cre_line)&(manifest.imaging_depth==imaging_depth)].container_id.unique()
+    save_dir = r'/home/ec2-user/SageMaker/shared/multi_session_dataframes'
+
+    data_df = pd.DataFrame()
+    timestamps_df = pd.DataFrame()
+    for container_id in container_ids:
+        data_suffix = str(container_id)+'_data'
+        timestamps_suffix = str(container_id)+'_timestamps'
+        data_path = os.path.join(save_dir, 'image_flash_response_df_'+expt_type+'_'+data_suffix+'.h5')
+        timestamps_path = os.path.join(save_dir, 'image_flash_response_df_'+expt_type+'_'+timestamps_suffix+'.h5')
+        # get data
+        data_tmp = pd.read_hdf(data_path, key='df')
+        timestamps_tmp = pd.read_hdf(timestamps_path, key='df')
+        data_df = pd.concat([data_df, data_tmp])
+        timestamps_df = pd.concat([timestamps_df, timestamps_tmp])
+    df = data_df.merge(timestamps_df, how='right', on=['experiment_id','flash_id'])
+    return df
+
+
