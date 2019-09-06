@@ -26,7 +26,45 @@ def get_dg_response_filter_from_saskia():
         columns = {'responsive_dg': 'responsive', 'pref_dir_dg': 'pref_dir', 'pref_tf_dg': 'pref_tf'},
         inplace = False)
 
+def get_sg_response_filter_from_saskia():
+    """
+    Returns a responsiveness df, with two cols:
+      [
+        'cell_specimen_id',
+        'responsive': bool
+      ]
+    The source is from saskia's swdb_dg_table.csv dataset.
+    """
+    # Read data from file 'filename.csv' 
+    # (in the same directory that your python process is based)
+    # Control delimiters, rows, column names with read_csv (see later) 
+    data = pd.read_csv("../data/swdb_sg_table.csv")
+    return data[['cell_specimen_id', 'responsive_sg']].rename(
+        columns = {'responsive_sg': 'responsive'},
+        inplace = False)
+
 def get_cells(boc, cells, brain_area, depth, cell_type, stimuli = [stim_info.DRIFTING_GRATINGS]):
+    """
+    Get cells that match the given selectors.
+    @param boc - BrainObservatoryCache
+    @param cells - DataFrame fetched like so: 
+        cells = boc.get_cell_specimens()
+        cells = pd.DataFrame.from_records(cells)
+    """
+    exps = boc.get_ophys_experiments(stimuli=stimuli,
+        targeted_structures = [brain_area],
+        imaging_depths = [depth],
+        cre_lines = [cell_type])
+    # Can't find [targeted_structure, cre_line] in cell table, so have to combine w/ exps.
+    exps_df = pd.DataFrame.from_dict(exps)
+    if len(exps_df)== 0:
+        return []
+    is_in_relevant_container_mask = False * len(cells)
+    for relevant_container_id in (exps_df.experiment_container_id.values):
+        is_in_relevant_container_mask |= (cells.experiment_container_id == relevant_container_id)
+    return cells[is_in_relevant_container_mask]
+
+def get_cells_static(boc, cells, brain_area, depth, cell_type, stimuli = [stim_info.STATIC_GRATINGS]):
     """
     Get cells that match the given selectors.
     @param boc - BrainObservatoryCache
@@ -100,6 +138,42 @@ def get_avg_normalized_response(data_set, cell_specimen_id, temporal_frequency):
       return None
     
     return mean_dff_ori['mean_dff']/max_response
+
+def get_avg_normalized_response_static(data_set, cell_specimen_id):
+    ''' generate normalized average response for each grating orientation
+    @return None if the max response is not positive. Some cells have negative mean dff values for all directions. 
+    '''
+    
+    timestamps, dff = data_set.get_dff_traces(cell_specimen_ids=[cell_specimen_id])
+    dff_trace = dff[0,:]
+    
+    stim_table = data_set.get_stimulus_table('static_gratings')
+    
+    #Calculate the mean DF/F for each grating presentation in this stimulus
+    rows = list()
+    for i in range(len(stim_table)):
+        new_row = {
+            'orientation': stim_table.orientation[i],
+            'mean_dff': dff_trace[stim_table.start[i]:stim_table.end[i]].mean()
+        }
+        rows.append(new_row)
+
+    cell_response = pd.DataFrame.from_dict(rows)
+    
+    mean_dff_ori = cell_response.groupby('orientation').mean()
+    # Clip negative values. Some examples: cell 517410416, exp 501271265, ec 511509529
+    # Talked to shawn and marina, and verified that these negative values are pretty small, so we should be good.
+    mean_dff_ori = mean_dff_ori.clip(lower=pd.Series({'mean_dff': 0.0}), axis=1)
+    #if min_mean_dff < 0:
+    #  print ("Ignoring cell", cell_specimen_id, "because min_mean_dff =", min_mean_dff)
+    #  return None
+
+    max_response = mean_dff_ori['mean_dff'].max()
+    if max_response == 0:
+      return None
+    
+    return mean_dff_ori['mean_dff']/max_response
+
 
 def convert_polar_dict_to_arrays(polar_series):
     thetas = []

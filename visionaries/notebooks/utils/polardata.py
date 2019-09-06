@@ -4,6 +4,7 @@ Useful functions for wrangling with polar data
 
 import random
 import numpy as np
+import matplotlib.pyplot as plt
 
 def cell_df_to_median_polar(cell_df):
     """
@@ -96,7 +97,6 @@ def get_new_dsi(responses_df):
     return new_dsi
 
 
-
 def circ_var(angles, responses):
     """
     Computes the circular variance of a set of responses.
@@ -112,12 +112,27 @@ def circ_var(angles, responses):
     responses: array-like, (n_samples, )
         The responses.
     """
+    responses = np.array(responses)
+    angles = np.array(angles)
+
     z = np.multiply(responses, np.exp(2 * np.pi * 1j * angles / 180))
     return 1 - np.abs(sum(z)) / sum(responses)
 
 
+def get_pval(angles, responses, n_samples=1000,
+             angle_dist='fixed', response_dist='perm'):
 
-def get_null_cv_samples(obs_responses, n_samples=10000, null_dist='boot'):
+    obs_cv = circ_var(angles, responses)
+    null_samples = get_null_cv_samples(angles=angles,
+                                       responses=responses,
+                                       n_samples=n_samples,
+                                       angle_dist=angle_dist,
+                                       response_dist=response_dist)
+    return np.mean(null_samples < obs_cv)
+
+
+def get_null_cv_samples(angles, responses, n_samples=1000,
+                        angle_dist='fixed', response_dist='perm'):
     """
     Samples from the null distribution of the circular variance.
 
@@ -134,61 +149,65 @@ def get_null_cv_samples(obs_responses, n_samples=10000, null_dist='boot'):
 
     Parameters
     -----------
-    obs_responses: array-like, (n_samples, )
+    responses: array-like, (n_samples, )
+        The observed angles.
+
+    responses: array-like, (n_samples, )
         The observed responses.
 
     n_samples: int
         How many null samples to draw.
 
-    null_dist: str
-        Which null distribution to use.
-        Must be one of ['boot', 'rand'].
+    angle_dist: str
+        How to sample angles for null distribution. Must be one of ['fixed', 'boot', 'rand']. 'fixed' uses the observed angles (respones must be random). 'boot' resamples angles from observed distribution. 'rand' samples angles from uniform distribution.
+
+    response_dist: str
+            How to sample responses for null distribution. Must be one of ['fixed', 'boot', 'perm']. 'fixed' uses the observed responsees (angles must be random). 'boot' resamples responses from observed distribution. 'perm' permutes the responses.
+
+    Output
+    ------
+    samples: array-like, (n_samples, )
+        The null samples.
+
     """
 
-    if null_dist == 'boot':
-        sample_fun = sample_rand_cv_boot
-    elif null_dist == 'rand':
-        sample_fun = sample_rand_cv
+    assert angle_dist in ['fixed', 'boot', 'rand']
+    assert response_dist in ['fixed', 'boot', 'perm']
+    assert not all([angle_dist == 'fixed', response_dist == 'fixed'])
 
-    return np.array([sample_fun(obs_responses) for _ in range(n_samples)])
+    n_samples = len(responses)
 
+    def sample():
+        if angle_dist == 'fixed':
+            ang = angles
+        if angle_dist == 'rand':
+            ang = np.random.uniform(0, 360, size=n_samples)
+        elif angle_dist == 'boot':
+            ang = np.random.choice(angles, replace=True, size=n_samples)
 
-def sample_rand_cv(obs_responses):
-    """
-    Sample random angles from uniform distribution then compute
-    circ var with observed responses.
+        if response_dist == 'fixed':
+            resp = responses
+        elif response_dist == 'boot':
+            resp = np.random.choice(responses, replace=True, size=n_samples)
+        elif response_dist == 'perm':
+            resp = np.random.permutation(responses)
 
-    Parameters
-    -----------
-    obs_responses: array-like, (n_samples, )
-        The observed responses.
-    """
-    rand_angles = np.random.uniform(0, 360, size=len(obs_responses))
-    return circ_var(rand_angles, obs_responses)
+        return circ_var(ang, resp)
 
-
-def sample_rand_cv_boot(obs_responses):
-    """
-    Sample random angles from uniform distribution, resample observed responses
-    from empirical distribution then compute cirv var.
-
-    Parameters
-    -----------
-    obs_responses: array-like, (n_samples, )
-        The observed responses.
-    """
-    rand_angles = np.random.uniform(0, 360, size=len(obs_responses))
-    boot_responses = np.random.choice(obs_responses, replace=True, size=len(obs_responses))
-
-    return circ_var(rand_angles, boot_responses)
+    return np.array([sample() for _ in range(n_samples)])
 
 
-def plot_test(angles, responses):
+def plot_test(angles, responses, n_samples=1000,
+              angle_dist='rand', response_dist='boot'):
     """
     Runs test and plots histogram of results.
     """
     obs_cv = circ_var(angles, responses)
-    null_samples = get_null_cv_samples(obs_responses=responses)
+    null_samples = get_null_cv_samples(angles=angles,
+                                       responses=responses,
+                                       n_samples=n_samples,
+                                       angle_dist=angle_dist,
+                                       response_dist=response_dist)
     pval = np.mean(null_samples < obs_cv)
 
     plt.hist(null_samples, color='black', bins=50)
@@ -200,7 +219,7 @@ def plot_test(angles, responses):
 
 def run_sim():
     """
-    Simulation showing one example of a reponse with tuning and one example with no tuning
+    Simulation showing one example of a reponse with tuning and one example with no tuning.
     """
     n = 100
     angles = np.random.uniform(0, 360, size=n)
