@@ -130,6 +130,28 @@ def get_multi_session_flash_response_df_for_container(container_id, cache):
 
 
 def get_multi_session_flash_response_df_for_experiment_type(cre_line, imaging_depth, cache):
+    """ Load pre-generated multi-session flash response dataframe from cache location on AWS for all containers of a given cre_line and imaging_depth
+
+            Parameters
+            ==========
+            container_id : int
+                ID of container to load
+            cache : cache object
+                special key within the .h5 file that denotes all non-array columns
+
+            Returns
+            =======
+            pandas.DataFrame :
+                flash_response_df aggregated over sessions for all containers of the given type
+
+            Example
+            =======
+            cre_line = 'Vip-IRES-Cre'
+            imaging_depth = 175
+            df = get_multi_session_flash_response_df_for_experiment_type(cre_line, imaging_depth, cache)
+
+        """
+
     expt_type = cre_line.split('-')[0]+'_'+str(imaging_depth)
     manifest = cache.experiment_table
     container_ids = manifest[(manifest.cre_line==cre_line)&(manifest.imaging_depth==imaging_depth)].container_id.unique()
@@ -139,15 +161,18 @@ def get_multi_session_flash_response_df_for_experiment_type(cre_line, imaging_de
     timestamps_df = pd.DataFrame()
     for container_id in container_ids:
         print(container_id)
-        data_suffix = str(container_id)+'_data'
-        timestamps_suffix = str(container_id)+'_timestamps'
-        data_path = os.path.join(save_dir, 'image_flash_response_df_'+expt_type+'_'+data_suffix+'.h5')
-        timestamps_path = os.path.join(save_dir, 'image_flash_response_df_'+expt_type+'_'+timestamps_suffix+'.h5')
-        # get data
-        data_tmp = pd.read_hdf(data_path, key='df')
-        timestamps_tmp = pd.read_hdf(timestamps_path, key='df')
-        data_df = pd.concat([data_df, data_tmp])
-        timestamps_df = pd.concat([timestamps_df, timestamps_tmp])
+        try:
+            data_suffix = str(container_id)+'_data'
+            timestamps_suffix = str(container_id)+'_timestamps'
+            data_path = os.path.join(save_dir, 'image_flash_response_df_'+expt_type+'_'+data_suffix+'.h5')
+            timestamps_path = os.path.join(save_dir, 'image_flash_response_df_'+expt_type+'_'+timestamps_suffix+'.h5')
+            # get data
+            data_tmp = pd.read_hdf(data_path, key='df')
+            timestamps_tmp = pd.read_hdf(timestamps_path, key='df')
+            data_df = pd.concat([data_df, data_tmp])
+            timestamps_df = pd.concat([timestamps_df, timestamps_tmp])
+        except:
+            print('couldnt load data for', container_id)
     df = data_df.merge(timestamps_df, how='right', on=['experiment_id','flash_id'])
     return df
 
