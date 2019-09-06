@@ -95,8 +95,6 @@ def get_new_dsi(responses_df):
     new_dsi = (pref_dir_val-non_pref_dir_val)/(pref_dir_val+non_pref_dir_val)
     return new_dsi
 
-import numpy as np
-
 
 def circ_var(angles, responses):
     """
