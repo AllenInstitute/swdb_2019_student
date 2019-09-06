@@ -281,3 +281,18 @@ def get_cell_distance(data_set, loc_x, loc_y, c1, c2):
     x2,y2 = loc_x[cidxs[1]], loc_y[cidxs[1]]
     return np.sqrt((x2-x1)**2 + (y2-y1)**2)
     
+def get_smoothed_avg(ts, frame_window):
+    """
+    Return a smoothed ts by replacing each data point w/ the avg given the frame window.
+    """
+    cur_sum = np.sum(ts[0:frame_window])
+    new_ts = [cur_sum / frame_window]
+    for frame in range(len(ts)):
+        new_ts.append(cur_sum / frame_window)
+        cur_sum -= ts[frame]
+        next_ind = frame + frame_window + 1
+        if next_ind >= len(ts):
+            # Too lazy to compute the last few frames. we're using window = 3 frames anyway.
+            break
+        cur_sum += ts[next_ind]
+    return new_ts
