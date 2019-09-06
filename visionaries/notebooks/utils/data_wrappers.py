@@ -192,6 +192,9 @@ def corr_one_exp(data_set, events, c1, c2, use_events, corr_type):
     elif corr_type == 'TEMP_CORR_AVG':
       # avg all the events, then do temp correlation once.
       totalts1, totalts2 = get_avg_tses(stim_table, events1, events2)
+      # smooth by avg of 3 frames. Ko 2011 did this as well.
+      totalts1 = get_smoothed_avg(totalts1, 3)
+      totalts2 = get_smoothed_avg(totalts2, 3)
       corr, p_value = pearsonr(totalts1, totalts2)
       return corr
     else:
@@ -223,7 +226,7 @@ def get_avg_tses(stim_table, events1, events2):
   totalts2 /= num_trial_processed
   return totalts1, totalts2
 
-def pairwise_dir_avg_temp_corr_one_exp(boc, eid, cs_d1, cs_d2, max_d, use_events, corr_type):
+def pairwise_dir_avg_temp_corr_one_exp(boc, eid, cs_d1, cs_d2, max_d, min_d, use_events, corr_type):
   """On one experiment, average temporal correlation between cell groups that prefer d1 vs d2
   Conceptually, the average correlation of spontaneous activity of a cell that likes d1 vs cell that likes d2.
   @param d1, d2 = the two directions to compare. E.g. 180.0
@@ -241,7 +244,7 @@ def pairwise_dir_avg_temp_corr_one_exp(boc, eid, cs_d1, cs_d2, max_d, use_events
           if c1 == c2:
               continue
           d = get_cell_distance(data_set, loc_x, loc_y, c1, c2)
-          if d is None or d > max_d:
+          if d is None or d > max_d or d < min_d:
             continue
           pair_corr = corr_one_exp(data_set, events, c1, c2, use_events, corr_type)
           if pair_corr is None:
