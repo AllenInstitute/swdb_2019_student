@@ -155,6 +155,7 @@ def corr_one_exp(data_set, events, c1, c2, use_events, corr_type):
     stim_table = data_set.get_stimulus_table('natural_movie_one') 
     if corr_type == 'NOISE_CORR':
       # Noise correlation
+      # There will be one noise corr value per frame.
       c1_trial_results = []
       c2_trial_results = []
       for trial_i in range(stim_table.repeat.max() + 1):
