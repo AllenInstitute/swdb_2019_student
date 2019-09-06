@@ -96,6 +96,7 @@ def get_new_dsi(responses_df):
     return new_dsi
 
 
+
 def circ_var(angles, responses):
     """
     Computes the circular variance of a set of responses.
@@ -215,4 +216,3 @@ def run_sim():
     plt.subplot(1, 2, 2)
     plot_test(angles, responses_no_pref)
     plt.title('no preference (should not reject null)')
-
