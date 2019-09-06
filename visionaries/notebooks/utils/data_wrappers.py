@@ -115,9 +115,9 @@ def corr_one_exp(data_set, events, c1, c2, use_events, corr_type):
     @param corr_type. One of these three values: [AVG_TEMP_CORR, TEMP_CORR_AVG, NOISE_CORR]
       AVG_TEMP_CORR: For each presentation, correlate the event ts, then, average all these correlation values
       TEMP_CORR_AVG: Average out all the event ts'es to get 2 ts, then, correlate 2 ts to get 1 number.
-      NOISE_CORR: For each presentation, get the 2 means from the 2 ts'es, repeat for each presentation, 
-        then correlate the two arrays of means.
-      do_noise_corr if True, get all the presos, then do noise correlation,
+      NOISE_CORR: Treat each frame as a single stimulus.
+        Get the noise correlations for each stimulus / frame.
+        Average them.
     else, average out temporal correlation for each preso.
 
     Note about spontaneous:
@@ -200,13 +200,7 @@ def corr_one_exp(data_set, events, c1, c2, use_events, corr_type):
     else:
       raise Exception("Invalid corr_type: {}".format(corr_type))
 
-def get_avg_tses(stim_table, events1, events2):
-  """
-  @param events1 and events2 are the responses to the full session.
-  @param stim_table lets you know the presentations you care about.
-  @return the averaged responses to presentations, one for each event ts.
-  """
-  # need to figure out the right start-end pairs because some reps are off-by-one frames.
+def get_starts_and_min_window_size(stim_table):
   starts = []
   min_window_size = stim_table.end.max()
   for trial_i in range(stim_table.repeat.max() + 1):
@@ -214,6 +208,16 @@ def get_avg_tses(stim_table, events1, events2):
       end = stim_table[stim_table.repeat==trial_i].end.max()
       starts.append(start)
       min_window_size = min(min_window_size, end-start)
+  return starts, min_window_size
+
+def get_avg_tses(stim_table, events1, events2):
+  """
+  @param events1 and events2 are the responses to the full session.
+  @param stim_table lets you know the presentations you care about.
+  @return the averaged responses to presentations, one for each event ts.
+  """
+  # need to figure out the right start-end pairs because some reps are off-by-one frames.
+  starts, min_window_size = get_starts_and_min_window_size(stim_table)
   totalts1 = np.zeros(min_window_size)
   totalts2 = np.zeros(min_window_size)
   num_trial_processed = 0
