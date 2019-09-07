@@ -230,7 +230,8 @@ def corr_one_exp(data_set, events, c1, c2, use_events, corr_type):
     if corr_type == 'NOISE_CORR':
       # Noise correlation
       stim_starts, min_window_size = get_starts_and_min_window_size(stim_table)
-
+      events1 = get_smoothed_avg(events1, 3)
+      events2 = get_smoothed_avg(events2, 3)
       # For each cell, get the average timeseries.
       c1_tses = []
       c2_tses = []
@@ -250,7 +251,6 @@ def corr_one_exp(data_set, events, c1, c2, use_events, corr_type):
         mean_sub_c2_ts = c2_tses[i] - c2_tsavg
         mean_sub_c1_tses.append(mean_sub_c1_ts)
         mean_sub_c2_tses.append(mean_sub_c2_ts)
-
       # For each frame, get noise correlation
       # There will be one noise corr value per frame.
       noise_corrs = []
@@ -264,9 +264,13 @@ def corr_one_exp(data_set, events, c1, c2, use_events, corr_type):
         if math.isnan(corr):
           continue
         noise_corrs.append(corr)
-      if len(noise_corrs) == 0:
+      # If too few frames to noise correlate, then very variable result
+      # Lots of frames can be dropped if on the same frame, both time series are 0.
+      if len(noise_corrs) < min_window_size / 10:
         return None
-      return np.mean(noise_corrs)
+      avg_noise_corr = np.mean(noise_corrs)
+      print("number of frames noise corred = ", len(noise_corrs), "avged corrs", avg_noise_corr)
+      return avg_noise_corr
     elif corr_type == 'AVG_TEMP_CORR':
       # do avg of temporal correlation
       # Each item is a temporal correlation of a single spontaneous presentation
