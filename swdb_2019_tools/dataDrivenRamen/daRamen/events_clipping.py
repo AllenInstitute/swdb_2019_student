@@ -3,7 +3,7 @@
 import numpy as np
 
 
-def get_event_related_1d(data, fs, indices, window, subtract_mean=None, overlapping=None, **kwargs):
+def get_event_related_1d(data, fs, orig_fs, indices, window, subtract_mean=None, overlapping=None, **kwargs):
     """Take an input time series, vector of event indices, and window sizes,
         and return a 2d matrix of windowed trials around the event indices.
 
@@ -13,6 +13,8 @@ def get_event_related_1d(data, fs, indices, window, subtract_mean=None, overlapp
             Voltage time series
         fs : int
             Sampling Frequency
+        orig_fs : int
+            Original Sampling Frequency of Recorded Data
         indices : array-like 1d of integers
             Indices of event onset indices
         window : tuple | shape (start, end)
@@ -38,9 +40,9 @@ def get_event_related_1d(data, fs, indices, window, subtract_mean=None, overlapp
 
         return window_times
 
-    def convert_index(fs, indexes):
+    def convert_index(fs, indexes, orig_fs):
         """convert the start times to their relative sample based on the fs parameter"""
-        conversion_factor = (1 / fs) * 30000  # Convert from 30Khs to the set sampling rate
+        conversion_factor = (1 / fs) * orig_fs  # Convert from Original Sampling Rate to the Down sampled rate
         indexes = np.rint(np.array(indexes) / conversion_factor)
         indexes = indexes.astype(int)
         return indexes
@@ -51,7 +53,8 @@ def get_event_related_1d(data, fs, indices, window, subtract_mean=None, overlapp
         indices = np.delete(indices, overlaps, axis=0)  # Remove them from the indices
 
     window_idx = windows_to_indices(fs=fs, window_times=window)  # convert times (in ms) to indices
-    inds = convert_index(fs=fs, indexes=indices) + np.arange(window_idx[0], window_idx[1])[:, None]  # broadcast indices
+    inds = convert_index(fs=fs, indexes=indices,
+                         orig_fs=orig_fs) + np.arange(window_idx[0], window_idx[1])[:, None]  # broadcast indices
 
     # Remove Edge Instances from the inds
     bad_label = []
@@ -93,7 +96,7 @@ def make_event_times_axis(window, fs):
     return event_times
 
 
-def get_event_related_2d(data, indices, fs, window, subtract_mean=None, overlapping=None, **kwargs):
+def get_event_related_2d(data, indices, fs, orig_fs,  window, subtract_mean=None, overlapping=None, **kwargs):
     """
     Parameters
     ----------
@@ -103,6 +106,8 @@ def get_event_related_2d(data, indices, fs, window, subtract_mean=None, overlapp
         Onsets of the Labels to be Clipped for one Chunk
     fs : int
             Sampling Frequency
+    orig_fs : int
+            Original Sampling Frequency of Recorded Data
     indices : array-like 1d of integers
             Indices of event onset indices
     window : tuple | shape (start, end)
@@ -119,8 +124,8 @@ def get_event_related_2d(data, indices, fs, window, subtract_mean=None, overlapp
         Neural Data in the User Defined Window for all Instances of each Label
     """
 
-    all_channel_events = np.apply_along_axis(func1d=get_event_related_1d, axis=-1, arr=data, fs=fs, indices=indices,
-                                             window=window, subtract_mean=subtract_mean, overlapping=overlapping,
-                                             **kwargs)
+    all_channel_events = np.apply_along_axis(func1d=get_event_related_1d, axis=-1, arr=data, fs=fs, orig_fs=orig_fs,
+                                             indices=indices, window=window, subtract_mean=subtract_mean,
+                                             overlapping=overlapping, **kwargs)
     events_matrix = np.transpose(all_channel_events, axes=[1, 0, 2])  # Reshape to (Events, Ch, Samples)
     return events_matrix
