@@ -53,8 +53,9 @@ cache = bpc.BehaviorProjectCache(cache_path)
 experiments = cache.experiment_table
 
 # select an experiment_id:
-subsetOfExperiments = experiments.loc[ ( experiments.passive_session==True ) & ( experiments.cre_line == 'Slc17a7-IRES2-Cre' ) ] # or 'Vip-IRES-Cre' 
-ex_id = subsetOfExperiments.ophys_experiment_id.sample(1).values[0]
+subsetOfExperiments = experiments.loc[ ( experiments.passive_session==False ) & ( experiments.cre_line == 'Slc17a7-IRES2-Cre' ) ] # or 'Vip-IRES-Cre' 
+ex_id = 813083478
+# subsetOfExperiments.ophys_experiment_id.sample(1).values[0]
 
 # Given experiment_id, load this experiment (eg B4 for one mouse) from the cache.
 # sess will be an ExtendedBehaviorSession, Represents data from a single Visual Behavior Ophys imaging session. 
@@ -126,7 +127,7 @@ plotCluesToEngagementVsNot(sess, 'exp_id = ' + str(ex_id))
 
 #%%
 # visualize the histograms of active neurons only:
-M = dffPeaks[activeCellInds, ]  # matrix where each row is a cell, responding to several flashes of an image
+M = dffPeaks[activeCellInds[0:8], ]  # matrix where each row is a cell, responding to several flashes of an image
 #M = peakDelays[activeCellInds, ]
 binEdges = np.linspace(0, 0.5, 25)
 plotStatisticsOfVariableVariance(M, binEdges, titleStr = 'distributions')
