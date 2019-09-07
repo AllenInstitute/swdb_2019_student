@@ -65,7 +65,7 @@ spont = [1, 4, 9, 6]*60    # start and end of opening spont, start and end of cl
 minSeenThreshold = 9     # minimum number of image flashes required, for each image, to allow use of a session.
 
 # the images to process:
-combinedImageList = ['im000', 'im106', 'im075', 'im073', 'im045', 'im054', 'im031', 'im035', 'im061', 'im062', 'im063', 'im065', 'im066', 'im069', 'im077','im085', 'omitted']
+combinedImageList = ['im000', 'im106', 'im075', 'im073',  'im066', 'im069', 'im077','im085', 'omitted'] #'im045', 'im054', 'im031', 'im035', 'im061', 'im062', 'im063', 'im065', 'im066', 'im069', 'im077','im085', 'omitted']
 #%%
 # Loop through the experiments. Return the number of each image in the post-checkout region, by image:   
 
@@ -213,15 +213,22 @@ for i in range(expList.shape[0]):
         exId = expList.ophys_experiment_id[ind]
         # identify if this is A1, B4, etc  
         sessionNumber = expList.stage_name[ind] 
-        animal = expList.animal_name[ind]
-        # imageSet = expList.image_set[ind]  # not needed
-        matchingExId = -1    # dummy value
+        animal = expList.animal_name[ind] 
+        
         if sessionNumber =='OPHYS_1_images_A':
             # find matching active session:
-            matchingExId = int(expList.loc[ (expList.animal_name == animal) & (expList.stage_name == 'OPHYS_3_images_A') & (expList.valid_cell_matching == True), 'ophys_experiment_id'  ] )
+            matchingExId = expList.loc[ (expList.animal_name == animal) & (expList.stage_name == 'OPHYS_3_images_A') & (expList.valid_cell_matching == True), 'ophys_experiment_id'  ]  
+            if len(matchingExId) > 0:
+                matchingExId = int(matchingExId)
+            else:
+                matchingExId = -1 
         if sessionNumber == 'OPHYS_4_images_B':
             # find matching active session:
-            matchingExId = int(expList.loc[ (expList.animal_name == animal) & (expList.stage_name == 'OPHYS_6_images_B') & (expList.valid_cell_matching == True), 'ophys_experiment_id'  ] )
+            matchingExId =  expList.loc[ (expList.animal_name == animal) & (expList.stage_name == 'OPHYS_6_images_B') & (expList.valid_cell_matching == True), 'ophys_experiment_id'  ] 
+            if len(matchingExId) > 0:
+                matchingExId = int(matchingExId)
+            else:
+                matchingExId = -1
         # see if there are enough checked out image views:
         # NOTE: This assumes expList has columns with counts of imagesSeen (inserted above)
         if  matchingExId > 0:    # ie there is a legit match
@@ -266,42 +273,48 @@ for i in range(expList.shape[0]):
                     imStarts = imStarts[np.logical_and( imStarts < 1000, startTimes > 2000) ]    # note direction of inequalities for engaged and for checked out (below)
                     
                 # apply the function with default parameters:
-                activeCellRowIndices, responseLags, ig2, dffPeaks, ig3, ig4 = findActiveCellsGivenStartTimes( D, imStarts, T, zScoreDff )                
-                # get the cell_specimen_ids using the activeCellInds:
-                activeCellIds = cellIds[activeCellRowIndices] 
-                # set aside for use on second session:
-                engagedActiveCellIds = activeCellIds 
+                activeCellRowIndices, responseLags, ig2, dffPeaks, ig3, ig4 = findActiveCellsGivenStartTimes( D, imStarts, T, zScoreDff ) 
                 
-                # store data: 
-                thisRow = int(expList.loc[expList.ophys_experiment_id == exId].index.values) 
-                
-                # raw data:
-                expList[ tag + 'ActiveCellIds_' + imList[i2]][thisRow] = activeCellIds 
-#                expList[ tag + 'Delays_' + imList[i2] ][thisRow] =  responseLags[activeCellRowIndices, ]
-#                expList[ tag + 'Peaks_' + imList[i2] ][thisRow ] =  dffPeaks[activeCellRowIndices, ]
-                
-                # calc and store lag variation statistics:
-                Dactive = responseLags[activeCellRowIndices, ]
-                meanVals, meanStdLeft, meanStdRight, medianVals, medianStdLeft, medianStdRight = calculateAsymmetricDistributionStats(Dactive)
-                
-                expList[ tag + 'LagMean_' + imList[i2]][thisRow] = meanVals
-                expList[ tag + 'LagMeanStdRight_' + imList[i2]][thisRow] = meanStdRight
-                expList[ tag + 'LagMeanStdLeft_' + imList[i2]][thisRow] = meanStdLeft
-                expList[ tag + 'LagMedian_' + imList[i2]][thisRow] = medianVals
-                expList[ tag + 'LagMedianStdRight_' + imList[i2]][thisRow] = medianStdRight
-                expList[ tag + 'LagMedianStdLeft_' + imList[i2]][thisRow] = medianStdLeft 
-                
-                # calc and store peak statistics vectors:
-                Dactive = dffPeaks[activeCellRowIndices, ]
-                meanVals, meanStdLeft, meanStdRight, medianVals, medianStdLeft, medianStdRight = calculateAsymmetricDistributionStats(Dactive)
-                
-                expList[ tag + 'PeakMean_' + imList[i2]][thisRow] = meanVals
-                expList[ tag + 'PeakMeanStdRight_' + imList[i2]][thisRow] = meanStdRight
-                expList[ tag + 'PeakMeanStdLeft_' + imList[i2]][thisRow] = meanStdLeft
-                expList[ tag + 'PeakMedian_' + imList[i2]][thisRow] = medianVals
-                expList[ tag + 'PeakMedianStdRight_' + imList[i2]][thisRow] = medianStdRight
-                expList[ tag + 'PeakMedianStdLeft_' + imList[i2]][thisRow] = medianStdLeft
-                
+                # if no active cells, abort and set flag to False to prevent 2nd session
+                if len(activeCellRowIndices) == 0:
+                    processCheckedOutCaseFlag = False
+                else:
+                    # go ahead
+                    # get the cell_specimen_ids using the activeCellInds:
+                    activeCellIds = cellIds[activeCellRowIndices] 
+                    # set aside for use on second session:
+                    engagedActiveCellIds = activeCellIds 
+                    
+                    # store data: 
+                    thisRow = int(expList.loc[expList.ophys_experiment_id == exId].index.values) 
+                    
+                    # raw data:
+                    expList[ tag + 'ActiveCellIds_' + imList[i2]][thisRow] = activeCellIds 
+    #                expList[ tag + 'Delays_' + imList[i2] ][thisRow] =  responseLags[activeCellRowIndices, ]
+    #                expList[ tag + 'Peaks_' + imList[i2] ][thisRow ] =  dffPeaks[activeCellRowIndices, ]
+                    
+                    # calc and store lag variation statistics:
+                    Dactive = responseLags[activeCellRowIndices, ]
+                    meanVals, meanStdLeft, meanStdRight, medianVals, medianStdLeft, medianStdRight = calculateAsymmetricDistributionStats(Dactive)
+                    
+                    expList[ tag + 'LagMean_' + imList[i2]][thisRow] = meanVals
+                    expList[ tag + 'LagMeanStdRight_' + imList[i2]][thisRow] = meanStdRight
+                    expList[ tag + 'LagMeanStdLeft_' + imList[i2]][thisRow] = meanStdLeft
+                    expList[ tag + 'LagMedian_' + imList[i2]][thisRow] = medianVals
+                    expList[ tag + 'LagMedianStdRight_' + imList[i2]][thisRow] = medianStdRight
+                    expList[ tag + 'LagMedianStdLeft_' + imList[i2]][thisRow] = medianStdLeft 
+                    
+                    # calc and store peak statistics vectors:
+                    Dactive = dffPeaks[activeCellRowIndices, ]
+                    meanVals, meanStdLeft, meanStdRight, medianVals, medianStdLeft, medianStdRight = calculateAsymmetricDistributionStats(Dactive)
+                    
+                    expList[ tag + 'PeakMean_' + imList[i2]][thisRow] = meanVals
+                    expList[ tag + 'PeakMeanStdRight_' + imList[i2]][thisRow] = meanStdRight
+                    expList[ tag + 'PeakMeanStdLeft_' + imList[i2]][thisRow] = meanStdLeft
+                    expList[ tag + 'PeakMedian_' + imList[i2]][thisRow] = medianVals
+                    expList[ tag + 'PeakMedianStdRight_' + imList[i2]][thisRow] = medianStdRight
+                    expList[ tag + 'PeakMedianStdLeft_' + imList[i2]][thisRow] = medianStdLeft
+                    
                 
                 
         # checked out case is identical
@@ -315,37 +328,43 @@ for i in range(expList.shape[0]):
                     imStarts = imStarts[np.logical_and( imStarts > 1000, startTimes < 2000) ] 
                     
                 # apply the function with default parameters:
-                activeCellRowIndices, responseLags, ig2, dffPeaks, ig3, ig4 = findActiveCellsGivenStartTimes( D, imStarts, T, zScoreDff )                
-                # get the cell_specimen_ids using the activeCellInds:
-                activeCellIds = cellIds[activeCellRowIndices]  
-                # set aside for use on second session:
-                checkedOutActiveCellIds = activeCellIds
-                thisRow = int(expList.loc[expList.ophys_experiment_id == exId].index.values) 
-                expList[tag + 'ActiveCellIds_' + imList[i2]][thisRow] = activeCellIds 
-#                expList[ tag + 'Delays_' + imList[i2] ][thisRow] =  responseLags[activeCellRowIndices, ]
-#                expList[ tag + 'Peaks_' + imList[i2] ][thisRow ] =  dffPeaks[activeCellRowIndices, ]
+                activeCellRowIndices, responseLags, ig2, dffPeaks, ig3, ig4 = findActiveCellsGivenStartTimes( D, imStarts, T, zScoreDff )
                 
-                # calc and store lag variation statistics:
-                Dactive = responseLags[activeCellRowIndices, ]
-                meanVals, meanStdLeft, meanStdRight, medianVals, medianStdLeft, medianStdRight = calculateAsymmetricDistributionStats(Dactive)
-                
-                expList[ tag + 'LagMean_' + imList[i2]][thisRow] = meanVals
-                expList[ tag + 'LagMeanStdRight_' + imList[i2]][thisRow] = meanStdRight
-                expList[ tag + 'LagMeanStdLeft_' + imList[i2]][thisRow] = meanStdLeft
-                expList[ tag + 'LagMedian_' + imList[i2]][thisRow] = medianVals
-                expList[ tag + 'LagMedianStdRight_' + imList[i2]][thisRow] = medianStdRight
-                expList[ tag + 'LagMedianStdLeft_' + imList[i2]][thisRow] = medianStdLeft 
-                
-                # calc and store peak statistics vectors:
-                Dactive = dffPeaks[activeCellRowIndices, ]
-                meanVals, meanStdLeft, meanStdRight, medianVals, medianStdLeft, medianStdRight = calculateAsymmetricDistributionStats(Dactive)
-                
-                expList[ tag + 'PeakMean_' + imList[i2]][thisRow] = meanVals
-                expList[ tag + 'PeakMeanStdRight_' + imList[i2]][thisRow] = meanStdRight
-                expList[ tag + 'PeakMeanStdLeft_' + imList[i2]][thisRow] = meanStdLeft
-                expList[ tag + 'PeakMedian_' + imList[i2]][thisRow] = medianVals
-                expList[ tag + 'PeakMedianStdRight_' + imList[i2]][thisRow] = medianStdRight
-                expList[ tag + 'PeakMedianStdLeft_' + imList[i2]][thisRow] = medianStdLeft
+                # if no active cells, abort and set flag to False to prevent 2nd session
+                if len(activeCellRowIndices) == 0:
+                    processCheckedOutCaseFlag = False
+                else:
+                    # go ahead
+                    # get the cell_specimen_ids using the activeCellInds:
+                    activeCellIds = cellIds[activeCellRowIndices]  
+                    # set aside for use on second session:
+                    checkedOutActiveCellIds = activeCellIds
+                    thisRow = int(expList.loc[expList.ophys_experiment_id == exId].index.values) 
+                    expList[tag + 'ActiveCellIds_' + imList[i2]][thisRow] = activeCellIds 
+    #                expList[ tag + 'Delays_' + imList[i2] ][thisRow] =  responseLags[activeCellRowIndices, ]
+    #                expList[ tag + 'Peaks_' + imList[i2] ][thisRow ] =  dffPeaks[activeCellRowIndices, ]
+                    
+                    # calc and store lag variation statistics:
+                    Dactive = responseLags[activeCellRowIndices, ]
+                    meanVals, meanStdLeft, meanStdRight, medianVals, medianStdLeft, medianStdRight = calculateAsymmetricDistributionStats(Dactive)
+                    
+                    expList[ tag + 'LagMean_' + imList[i2]][thisRow] = meanVals
+                    expList[ tag + 'LagMeanStdRight_' + imList[i2]][thisRow] = meanStdRight
+                    expList[ tag + 'LagMeanStdLeft_' + imList[i2]][thisRow] = meanStdLeft
+                    expList[ tag + 'LagMedian_' + imList[i2]][thisRow] = medianVals
+                    expList[ tag + 'LagMedianStdRight_' + imList[i2]][thisRow] = medianStdRight
+                    expList[ tag + 'LagMedianStdLeft_' + imList[i2]][thisRow] = medianStdLeft 
+                    
+                    # calc and store peak statistics vectors:
+                    Dactive = dffPeaks[activeCellRowIndices, ]
+                    meanVals, meanStdLeft, meanStdRight, medianVals, medianStdLeft, medianStdRight = calculateAsymmetricDistributionStats(Dactive)
+                    
+                    expList[ tag + 'PeakMean_' + imList[i2]][thisRow] = meanVals
+                    expList[ tag + 'PeakMeanStdRight_' + imList[i2]][thisRow] = meanStdRight
+                    expList[ tag + 'PeakMeanStdLeft_' + imList[i2]][thisRow] = meanStdLeft
+                    expList[ tag + 'PeakMedian_' + imList[i2]][thisRow] = medianVals
+                    expList[ tag + 'PeakMedianStdRight_' + imList[i2]][thisRow] = medianStdRight
+                    expList[ tag + 'PeakMedianStdLeft_' + imList[i2]][thisRow] = medianStdLeft
                 
         # Now repeat with the second session. The key difference is that we specify the active cells up front. We then restrict the dff matrix that goes into 'findActiveCells etc        
         ''' load the second session  '''
@@ -458,7 +477,7 @@ for i in range(expList.shape[0]):
                 
 #%%                
 ''' Save this dataframe for future analysis'''
-expList.to_csv('experimentTableWithCollectedData_full')
+expList.to_csv('experimentTableWithCollectedData_32')
 
 
 
