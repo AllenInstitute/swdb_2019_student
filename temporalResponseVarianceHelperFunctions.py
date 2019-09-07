@@ -97,6 +97,8 @@ def findActiveCellsGivenStartTimes(D, starts, T, zScoreDff, windowLength = 0.5, 
         delayTemp = np.zeros(dffTemp.shape)
         for p in range(len(dffTemp)):
             delaySteps =  np.where( D[p, window] == dffTemp[p] )[0]  # the delay in timesteps
+            if len(delaySteps) > 1:
+                delaySteps = delaySteps[0]
             delayTemp[ p ] = miniT[delaySteps] - t
             
         # append results for this start time:
