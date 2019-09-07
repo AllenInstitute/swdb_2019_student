@@ -29,28 +29,120 @@ sns.set_palette('deep');
 #%%
 # Preparation:
 
-resultsDataframe = 'experimentTableWithCollectedData_1'
+resultsDataframe = 'experimentTableWithCollectedData_1'   # 32' # _1'  _24
 D = pd.read_csv(resultsDataframe)    # the full results dataframe
 
 ''' USER ENTRIES '''
 figureSizeParam = (8,8)
-stdType = 'Left'
+stdType = 'Right'
 
 ''' END USER ENTRIES '''
 
-imList = ['im000', 'im106'] # , 'im075', 'im073', 'im045', 'im054', 'im031', 'im035', 'im061', 'im062', 'im063', 'im065', 'im066', 'im069', 'im077','im085', 'omitted']
+imList = ['im000'] # for _1'
+#imList =  ['im000', 'im106', 'im075', 'im073',  'im066', 'im069', 'im077','im085', 'omitted']   # for _24, _32
 centerList = ['Median' ] # , 'Median']  # centers
 stateList = ['engaged', 'checkedOut']
 varList = ['Peak','Lag']
 groupList = ['B'] # ['A', 'B']
+layerList = [175, 375]
 
-for g in groupList:
-    for s in stateList:
-        for v in varList:
+for layer in layerList:
+    for g in groupList:
+        for s in stateList:
+            for v in varList:
+                for c in centerList:
+                    for im in imList:
+                        colx = s + v + c + '_' + im
+                        coly = s + v + c + 'Std' + stdType + '_' + im
+                        if g == 'A':
+                            preStage = 'OPHYS_1_images_A'
+                            postStage =  'OPHYS_3_images_A'
+                        else:
+                            preStage = 'OPHYS_4_images_B'
+                            postStage =  'OPHYS_6_images_B'
+                            
+                        # extract a new df with just the relevant rows:
+                        pre = D.loc[ D.stage_name == preStage ]
+                        pre = pre[pre[colx].notna() ]
+                        pre = pre.loc[pre.imaging_depth == layer]
+                        post = D.loc[ D.stage_name == postStage ]
+                        post = post[post[colx].notna() ]
+                        pre.reset_index()
+                        post.reset_index()
+                        
+                        ''' 1. plot std dev vs median: '''
+                        # collect x data: all pre, then all post for this image:
+                        this = pre
+                        x = []
+                        y = []
+                        for i in this.index:
+                            # hack since this data comes out as a str:
+                            a = this[colx][i]
+                            a = a.replace('[','')
+                            a = a.replace(']','')
+                            a = a.split()                               
+                            temp = np.zeros([len(a), 1 ])
+                            for j in range(len(a)):
+                                temp[j] = float(a[j])
+                            x.append(temp)
+                            
+                            # same for y data:
+                            a = this[coly][i]
+                            a = a.replace('[','')
+                            a = a.replace(']','')
+                            a = a.split()           
+                            temp = np.zeros([len(a), 1 ])
+                            for j in range(len(a)):
+                                temp[j] = float(a[j])
+                            y.append(temp)                        
+                        preX = np.array(x).flatten()
+                        preY = np.array(y).flatten()
+                        
+                        # collect post:
+                        this = post
+                        x = []
+                        y = []
+                        for i in this.index:
+                            # hack since this data comes out as a str:
+                            a = this[colx][i]
+                            a = a.replace('[','')
+                            a = a.replace(']','')
+                            a = a.split()                 
+                            temp = np.zeros([len(a), 1 ])
+                            for j in range(len(a)):
+                                temp[j] = float(a[j])
+                            x.append(temp)
+                            
+                            # same for y data:
+                            a = this[coly][i]
+                            a = a.replace('[','')
+                            a = a.replace(']','')
+                            a = a.split()                      
+                            temp = np.zeros([len(a), 1 ])
+                            for j in range(len(a)):
+                                temp[j] = float(a[j])
+                            y.append(temp) 
+                        postX = np.array(x).flatten()
+                        postY = np.array(y).flatten()
+                        
+                        # plot: 
+                                        
+                        plt.figure(figsize = figureSizeParam)
+                        plt.plot(preX, preY, 'o',  color = 'cadetblue' )                  
+                        plt.plot(postX, postY, 'o', color = 'firebrick', markersize = 6)
+                        plt.legend( ['pre', 'post'] )
+                        plt.xlabel(c, fontweight = 'bold')
+                        plt.ylabel(stdType.lower() + 'std dev ', fontweight = 'bold')
+                        plt.title(s + ' ' + v + ' ' + im + ' ' + g, fontweight = 'bold')
+                    
+''' Plot lag var vs peak var'''
+for layer in layerList:
+    for g in groupList:
+        for s in stateList:
             for c in centerList:
                 for im in imList:
-                    colx = s + v + c + '_' + im
-                    coly = s + v + c + 'Std' + stdType + '_' + im
+                    colx = s + 'Peak' + c + 'Std' + stdType + '_' + im
+                    coly = s + 'Lag' + c + 'Std' + stdType + '_' + im
                     if g == 'A':
                         preStage = 'OPHYS_1_images_A'
                         postStage =  'OPHYS_3_images_A'
@@ -61,6 +153,7 @@ for g in groupList:
                     # extract a new df with just the relevant rows:
                     pre = D.loc[ D.stage_name == preStage ]
                     pre = pre[pre[colx].notna() ]
+                    pre = pre.loc[pre.imaging_depth == layer]
                     post = D.loc[ D.stage_name == postStage ]
                     post = post[post[colx].notna() ]
                     pre.reset_index()
@@ -126,15 +219,14 @@ for g in groupList:
                     plt.figure(figsize = figureSizeParam)
                     plt.plot(preX, preY, 'o',  color = 'cadetblue' )                  
                     plt.plot(postX, postY, 'o', color = 'firebrick', markersize = 6)
-                    plt.legend( ['pre', 'post'], fontweight = 'bold' )
-                    plt.xlabel(c, fontweight = 'bold')
-                    plt.ylabel(stdType.lower() + 'std dev ', fontweight = 'bold')
-                    plt.title(s + ' ' + v + ' ' + im + ' ' + g, fontweight = 'bold')
-                
-                
-#                    # try seaborn:
-#                    m = pd.DataFrame( {'preX' : preX , 'preY' : preY, 'postX' : postX, 'postY' : postY }, index = [1,2,3,4] )
-#                    ax = sns.scatterplot(x="preX", y="preY", data = m)           
+                    plt.legend( ['pre', 'post'] )
+                    plt.xlabel('Peak std dev', fontweight = 'bold')
+                    plt.ylabel('Lag std dev', fontweight = 'bold')
+                    plt.title(s + ' std devs Lag vs Peak ' + im + ' ' + g, fontweight = 'bold')
+                                    
+    #                    # try seaborn:
+    #                    m = pd.DataFrame( {'preX' : preX , 'preY' : preY, 'postX' : postX, 'postY' : postY }, index = [1,2,3,4] )
+    #                    ax = sns.scatterplot(x="preX", y="preY", data = m)           
 #            
             
             
