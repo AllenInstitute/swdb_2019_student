@@ -58,18 +58,24 @@ expList = experiments.loc[ ( experiments.passive_session== False ) & ( experimen
 expList = addRewardedExcitationExperimentCheckoutTimesToExperimentTable(expList)
 '''Special mouse: exp_id 864370674 checks out at 2700, but is also checked out 1000-2000. This is NOT added to the dataframe by this function.'''
 
-#%%
-# Loop through the experiments. Return the number of each image in the post-checkout region, by image:   
 exIdList = expList.ophys_experiment_id.values
 indices = expList.index.values
+
+spont = [1, 4, 9, 6]*60    # start and end of opening spont, start and end of closing spont (in seconds)
+minSeenThreshold = 9     # minimum number of image flashes required, for each image, to allow use of a session.
+
+# the images to process:
+combinedImageList = ['im000', 'im106', 'im075', 'im073', 'im045', 'im054', 'im031', 'im035', 'im061', 'im062', 'im063', 'im065', 'im066', 'im069', 'im077','im085', 'omitted']
+#%%
+# Loop through the experiments. Return the number of each image in the post-checkout region, by image:   
+
 numImsSeenCheckedOut = np.zeros([ len(exIdList), 9] )    # we know there are 9 ims ( 8 + 'omitted')
 numImsSeenEngaged = np.zeros([ len(exIdList), 9 ])
-
 
 expList['engagedImCounts'] = None
 expList['checkedOutImCounts'] = None
 
-for i in range(10,12):  #        (expList.shape[0]):
+for i in range(expList.shape[0]):
     # get the experiment_id
     ind = indices[i]
     exId = expList.ophys_experiment_id[ind]
@@ -122,63 +128,88 @@ for i in range(10,12):  #        (expList.shape[0]):
 3. On B6, calc stats using active pixels from B4
 
 '''
-exIdList = expList.ophys_experiment_id.values    # rows are indexed by 1:n
-indices = expList.index.values      # these are the indices of the rows in the panda 'expList'
-minSeenThreshold = 9
 
 # add many columns for each image to expList, to store results matrices:
-combinedImageList = ['im000', 'im106', 'im075', 'im073', 'im045', 'im054', 'im031', 'im035', 'im061', 'im062', 'im063', 'im065', 'im066', 'im069', 'im077','im085', 'omitted']
-for i in range(len(combinedImageList)):
-    expList['engagedActiveCellIds_' + combinedImageList[i] ] = None
-for i in range(len(combinedImageList)):
-    expList['engagedDelays_' + combinedImageList[i] ] =  None
-for i in range(len(combinedImageList)):
-    expList['engagedPeaks_' + combinedImageList[i] ] =  None
-for i in range(len(combinedImageList)):
-    expList['checkedOutActiveCellIds_' + combinedImageList[i] ] = None
-for i in range(len(combinedImageList)):
-    expList['checkedOutDelays_' + combinedImageList[i] ] =  None
-for i in range(len(combinedImageList)):
-    expList['checkedOutPeaks_' + combinedImageList[i] ] =  None   
 
 # columns for statistics:
-tag = 'engaged'    
+tag = 'engaged' 
 for i in range(len(combinedImageList)):
-    expList['LagMean_' + combinedImageList[i] ] =  None   
+    expList[ tag + 'ActiveCellIds_' + combinedImageList[i] ] = None
+#for i in range(len(combinedImageList)):
+#    expList['Delays_' + combinedImageList[i] ] =  None
+#for i in range(len(combinedImageList)):
+#    expList['Peaks_' + combinedImageList[i] ] =  None
+     
 for i in range(len(combinedImageList)):
-    expList['LagMeanStdRight_' + combinedImageList[i] ] =  None   
+    expList[ tag + 'LagMean_' + combinedImageList[i] ] =  None   
 for i in range(len(combinedImageList)):
-    expList['LagMeanstdLeft_' + combinedImageList[i] ] =  None   
+    expList[ tag + 'LagMeanStdRight_' + combinedImageList[i] ] =  None   
 for i in range(len(combinedImageList)):
-    expList['LagMedian_' + combinedImageList[i] ] =  None   
+    expList[ tag + 'LagMeanStdLeft_' + combinedImageList[i] ] =  None   
 for i in range(len(combinedImageList)):
-    expList['LagMedianStdRight_' + combinedImageList[i] ] =  None   
+    expList[ tag + 'LagMedian_' + combinedImageList[i] ] =  None   
 for i in range(len(combinedImageList)):
-    expList['LagMedianStdLeft_' + combinedImageList[i] ] =  None   
+    expList[ tag + 'LagMedianStdRight_' + combinedImageList[i] ] =  None   
+for i in range(len(combinedImageList)):
+    expList[ tag + 'LagMedianStdLeft_' + combinedImageList[i] ] =  None   
+   
+for i in range(len(combinedImageList)):
+    expList[ tag + 'PeakMean_' + combinedImageList[i] ] =  None   
+for i in range(len(combinedImageList)):
+    expList[ tag + 'PeakMeanStdRight_' + combinedImageList[i] ] =  None   
+for i in range(len(combinedImageList)):
+    expList[ tag + 'PeakMeanStdLeft_' + combinedImageList[i] ] =  None   
+for i in range(len(combinedImageList)):
+    expList[ tag + 'PeakMedian_' + combinedImageList[i] ] =  None   
+for i in range(len(combinedImageList)):
+    expList[ tag + 'PeakMedianStdRight_' + combinedImageList[i] ] =  None   
+for i in range(len(combinedImageList)):
+    expList[ tag + 'PeakMedianStdLeft_' + combinedImageList[i] ] =  None   
+    
 
-tag = 'checkedOut'    
+tag = 'checkedOut' 
 for i in range(len(combinedImageList)):
-    expList['PeakMean_' + combinedImageList[i] ] =  None   
+    expList[ tag + 'ActiveCellIds_' + combinedImageList[i] ] = None
+#for i in range(len(combinedImageList)):
+#    expList['Delays_' + combinedImageList[i] ] =  None
+#for i in range(len(combinedImageList)):
+#    expList['Peaks_' + combinedImageList[i] ] =  None   
+    
 for i in range(len(combinedImageList)):
-    expList['PeakMeanStdRight_' + combinedImageList[i] ] =  None   
+    expList[ tag + 'LagMean_' + combinedImageList[i] ] =  None   
 for i in range(len(combinedImageList)):
-    expList['PeakMeanstdLeft_' + combinedImageList[i] ] =  None   
+    expList[ tag + 'LagMeanStdRight_' + combinedImageList[i] ] =  None   
 for i in range(len(combinedImageList)):
-    expList['PeakMedian_' + combinedImageList[i] ] =  None   
+    expList[ tag + 'LagMeanStdLeft_' + combinedImageList[i] ] =  None   
 for i in range(len(combinedImageList)):
-    expList['PeakMedianStdRight_' + combinedImageList[i] ] =  None   
+    expList[ tag + 'LagMedian_' + combinedImageList[i] ] =  None   
 for i in range(len(combinedImageList)):
-    expList['PeakMedianStdLeft_' + combinedImageList[i] ] =  None   
+    expList[ tag + 'LagMedianStdRight_' + combinedImageList[i] ] =  None   
+for i in range(len(combinedImageList)):
+    expList[ tag + 'LagMedianStdLeft_' + combinedImageList[i] ] =  None   
+   
+for i in range(len(combinedImageList)):
+    expList[ tag + 'PeakMean_' + combinedImageList[i] ] =  None   
+for i in range(len(combinedImageList)):
+    expList[ tag + 'PeakMeanStdRight_' + combinedImageList[i] ] =  None   
+for i in range(len(combinedImageList)):
+    expList[ tag + 'PeakMeanStdLeft_' + combinedImageList[i] ] =  None   
+for i in range(len(combinedImageList)):
+    expList[ tag + 'PeakMedian_' + combinedImageList[i] ] =  None   
+for i in range(len(combinedImageList)):
+    expList[ tag + 'PeakMedianStdRight_' + combinedImageList[i] ] =  None   
+for i in range(len(combinedImageList)):
+    expList[ tag + 'PeakMedianStdLeft_' + combinedImageList[i] ] =  None   
 
 #%%
-''' Loop through the experiments. We only process A1 and B4 (A1 includes processing A3, B4 includes processing B6)'''    
-for i in range(10,11):    #     (expList.shape[0]):
+''' Loop through the experiments. We only process A1 and B4 (A1 includes also processing A3, B4 includes also processing B6)'''    
+for i in range(expList.shape[0]):
     
     processEngagedCaseFlag = False
     processCheckedOutCaseFlag = False   
     ind = indices[i]
     
-    if expList.valid_cell_matching[ind]:      # ignore experiments without valid cell matching 
+    if (expList.valid_cell_matching[ind]) & (expList.stage_name[ind] == 'OPHYS_4_images_B' ):      # ignore experiments without valid cell matching  # TEMPORARY: ALSO IGNORE 'A' SESSIONS
         exId = expList.ophys_experiment_id[ind]
         # identify if this is A1, B4, etc  
         sessionNumber = expList.stage_name[ind] 
@@ -212,14 +243,18 @@ for i in range(10,11):    #     (expList.shape[0]):
         cellIds = dffTable.index.values
         T = sess.ophys_timestamps    # np vector of the experiment's timestamps
         # calc z-score matrix:
-        startGrey =  np.logical_and(T < 4.5*60, T > 0.67*60 ) 
-        endGrey = np.logical_and( T > max(T) - 9.6*60, T < max(T) - 5.6*60 )    
+        startGrey =  np.logical_and(T > spont[0], T < spont[1] ) 
+        endGrey = np.logical_and( T > max(T) - spont[2], T < max(T) - spont[3] )    
         W = startGrey + endGrey   # add the booleans
         zScoreDff, spontMean, spontStd = transformFiringRatesToLikelihoodMeasure( D, W )
         checkoutTime = expList.loc[ expList.ophys_experiment_id  == exId, 'checkoutTime' ].values 
         
+        # get the subset of images to be processed that are in this session:
+        imListForThisSession = np.unique(stimPres.image_name.values)
+        imList = [ combinedImageList[i]  for i in   np.where( np.isin(combinedImageList, imListForThisSession) == True )[0]  ]
+        
         # loop through images, getting stats for each:
-        imList = np.sort( np.unique(stimPres.image_name.values) )  # ascending order
+        
         # engaged case:
         if processEngagedCaseFlag:
             tag = 'engaged'
@@ -254,7 +289,7 @@ for i in range(10,11):    #     (expList.shape[0]):
                 expList[ tag + 'LagMeanStdLeft_' + imList[i2]][thisRow] = meanStdLeft
                 expList[ tag + 'LagMedian_' + imList[i2]][thisRow] = medianVals
                 expList[ tag + 'LagMedianStdRight_' + imList[i2]][thisRow] = medianStdRight
-                expList[ tag + 'LagMdianStdLeft_' + imList[i2]][thisRow] = medianStdLeft 
+                expList[ tag + 'LagMedianStdLeft_' + imList[i2]][thisRow] = medianStdLeft 
                 
                 # calc and store peak statistics vectors:
                 Dactive = dffPeaks[activeCellRowIndices, ]
@@ -265,7 +300,7 @@ for i in range(10,11):    #     (expList.shape[0]):
                 expList[ tag + 'PeakMeanStdLeft_' + imList[i2]][thisRow] = meanStdLeft
                 expList[ tag + 'PeakMedian_' + imList[i2]][thisRow] = medianVals
                 expList[ tag + 'PeakMedianStdRight_' + imList[i2]][thisRow] = medianStdRight
-                expList[ tag + 'PeakMdianStdLeft_' + imList[i2]][thisRow] = medianStdLeft
+                expList[ tag + 'PeakMedianStdLeft_' + imList[i2]][thisRow] = medianStdLeft
                 
                 
                 
@@ -299,7 +334,7 @@ for i in range(10,11):    #     (expList.shape[0]):
                 expList[ tag + 'LagMeanStdLeft_' + imList[i2]][thisRow] = meanStdLeft
                 expList[ tag + 'LagMedian_' + imList[i2]][thisRow] = medianVals
                 expList[ tag + 'LagMedianStdRight_' + imList[i2]][thisRow] = medianStdRight
-                expList[ tag + 'LagMdianStdLeft_' + imList[i2]][thisRow] = medianStdLeft 
+                expList[ tag + 'LagMedianStdLeft_' + imList[i2]][thisRow] = medianStdLeft 
                 
                 # calc and store peak statistics vectors:
                 Dactive = dffPeaks[activeCellRowIndices, ]
@@ -310,11 +345,10 @@ for i in range(10,11):    #     (expList.shape[0]):
                 expList[ tag + 'PeakMeanStdLeft_' + imList[i2]][thisRow] = meanStdLeft
                 expList[ tag + 'PeakMedian_' + imList[i2]][thisRow] = medianVals
                 expList[ tag + 'PeakMedianStdRight_' + imList[i2]][thisRow] = medianStdRight
-                expList[ tag + 'PeakMdianStdLeft_' + imList[i2]][thisRow] = medianStdLeft
+                expList[ tag + 'PeakMedianStdLeft_' + imList[i2]][thisRow] = medianStdLeft
                 
-        # Now repeat with the second session. The key difference is that we specify the active cells up front. We then restrict the dff matrix that goes into 'findActiveCells etc
-        
-        # load the second session
+        # Now repeat with the second session. The key difference is that we specify the active cells up front. We then restrict the dff matrix that goes into 'findActiveCells etc        
+        ''' load the second session  '''
         sess = cache.get_session(matchingExId)
         stimPres = sess.stimulus_presentations       
         
@@ -323,14 +357,18 @@ for i in range(10,11):    #     (expList.shape[0]):
         
         T = sess.ophys_timestamps    # np vector of the experiment's timestamps
         # calc z-score matrix:
-        startGrey =  np.logical_and(T < 4.5*60, T > 0.67*60 ) 
-        endGrey = np.logical_and( T > max(T) - 9.6*60, T < max(T) - 5.6*60 )    
+        startGrey =  np.logical_and(T > spont[0], T < spont[1] ) 
+        endGrey = np.logical_and( T > max(T) - spont[2], T < max(T) - spont[3] )    
         W = startGrey + endGrey   # add the booleans
         zScoreDff, spontMean, spontStd = transformFiringRatesToLikelihoodMeasure( D, W )
         checkoutTime = expList.loc[ expList.ophys_experiment_id  == exId, 'checkoutTime' ].values  
         
+        
+        # get the subset of images to be processed that are in this session:
+        imListForThisSession = np.unique(stimPres.image_name.values)
+        imList = [ combinedImageList[i]  for i in   np.where( np.isin(combinedImageList, imListForThisSession) == True )[0]  ]
+        
         # loop through images, getting stats for each:
-        imList = np.sort( np.unique(stimPres.image_name.values) )  # ascending order
         # engaged case:
         if processEngagedCaseFlag:
             tag = 'engaged'
@@ -346,7 +384,7 @@ for i in range(10,11):    #     (expList.shape[0]):
                 # apply the function with default parameters:
                 ig1, responseLags, ig2, dffPeaks, ig3, ig4 = findActiveCellsGivenStartTimes( DActiveOnly, imStarts, T, zScoreDff )                
                 
-                thisRow = int(expList.loc[expList.ophys_experiment_id == exId].index.values)   # row index in expList for storing 
+                thisRow = int(expList.loc[expList.ophys_experiment_id == matchingExId].index.values)   # row index in expList for storing 
                 
                 # store raw data
                 expList[tag + 'ActiveCellIds_' + imList[i2]][thisRow] = engagedActiveCellIds 
@@ -362,7 +400,7 @@ for i in range(10,11):    #     (expList.shape[0]):
                 expList[ tag + 'LagMeanStdLeft_' + imList[i2]][thisRow] = meanStdLeft
                 expList[ tag + 'LagMedian_' + imList[i2]][thisRow] = medianVals
                 expList[ tag + 'LagMedianStdRight_' + imList[i2]][thisRow] = medianStdRight
-                expList[ tag + 'LagMdianStdLeft_' + imList[i2]][thisRow] = medianStdLeft 
+                expList[ tag + 'LagMedianStdLeft_' + imList[i2]][thisRow] = medianStdLeft 
                 
                 # calc and store peak statistics vectors:
                 Dactive = dffPeaks
@@ -373,7 +411,7 @@ for i in range(10,11):    #     (expList.shape[0]):
                 expList[ tag + 'PeakMeanStdLeft_' + imList[i2]][thisRow] = meanStdLeft
                 expList[ tag + 'PeakMedian_' + imList[i2]][thisRow] = medianVals
                 expList[ tag + 'PeakMedianStdRight_' + imList[i2]][thisRow] = medianStdRight
-                expList[ tag + 'PeakMdianStdLeft_' + imList[i2]][thisRow] = medianStdLeft
+                expList[ tag + 'PeakMedianStdLeft_' + imList[i2]][thisRow] = medianStdLeft
                 
                 
         # checked out case is identical
@@ -391,7 +429,7 @@ for i in range(10,11):    #     (expList.shape[0]):
                 # apply the function with default parameters:
                 ig1, responseLags, ig2, dffPeaks, ig3, ig4 = findActiveCellsGivenStartTimes( DActiveOnly, imStarts, T, zScoreDff )                 
                 
-                thisRow = int(expList.loc[expList.ophys_experiment_id == exId].index.values) 
+                thisRow = int(expList.loc[expList.ophys_experiment_id == matchingExId].index.values) 
                 expList[tag + 'ActiveCellIds_' + imList[i2]][thisRow] = checkedOutActiveCellIds 
 #                expList[ tag + 'Delays_' + imList[i2] ][thisRow] =  responseLags
 #                expList[ tag + 'Peaks_' + imList[i2]  ][thisRow] =  dffPeaks
@@ -405,7 +443,7 @@ for i in range(10,11):    #     (expList.shape[0]):
                 expList[ tag + 'LagMeanStdLeft_' + imList[i2]][thisRow] = meanStdLeft
                 expList[ tag + 'LagMedian_' + imList[i2]][thisRow] = medianVals
                 expList[ tag + 'LagMedianStdRight_' + imList[i2]][thisRow] = medianStdRight
-                expList[ tag + 'LagMdianStdLeft_' + imList[i2]][thisRow] = medianStdLeft 
+                expList[ tag + 'LagMedianStdLeft_' + imList[i2]][thisRow] = medianStdLeft 
                 
                 # calc and store peak statistics vectors:
                 Dactive = dffPeaks
@@ -416,11 +454,11 @@ for i in range(10,11):    #     (expList.shape[0]):
                 expList[ tag + 'PeakMeanStdLeft_' + imList[i2]][thisRow] = meanStdLeft
                 expList[ tag + 'PeakMedian_' + imList[i2]][thisRow] = medianVals
                 expList[ tag + 'PeakMedianStdRight_' + imList[i2]][thisRow] = medianStdRight
-                expList[ tag + 'PeakMdianStdLeft_' + imList[i2]][thisRow] = medianStdLeft
+                expList[ tag + 'PeakMedianStdLeft_' + imList[i2]][thisRow] = medianStdLeft
                 
 #%%                
 ''' Save this dataframe for future analysis'''
-expList.to_csv('experimentTableWithCollectedData_1')
+expList.to_csv('experimentTableWithCollectedData_full')
 
 
 
