@@ -118,41 +118,6 @@ def _load_xarray_data(data_name: str, session: str, source=None, verbose = False
     return xr.load_dataarray(data_file_path)
 
 
-
-def _load_xarray_data(data_name: str, region: str, source=None, verbose = False):
-    # TODO: Add *Args to allow for identifier information to be appended to the name of the file
-
-    """
-
-    Parameters
-    ----------
-    data_name : str
-    region : str
-    session : str
-    source : str, pathlib.Path, optional
-        Location of data to be loaded
-
-    Returns
-    -------
-    np.load(data_file_path) : array, tuple, dict, etc.
-        Data stored in the file
-
-    """
-
-    file_name = data_name + '.nc'
-
-    data_file_path = _handle_data_path(data_name=file_name, region=region, dir_path=source,
-                                       make_parents=False)
-
-    if verbose:
-        # print(f"Saving {data_name} Data to", data_file_path.name)  # Uncomment once py3.5 support Dropped
-        print("Saving {data_name} Data to {file_path}".format(data_name=data_name, file_path=data_file_path.name))
-
-    data_file_path = str(data_file_path)  # Convert Path to String for backwards compatibility
-
-    return xr.open_dataset(data_file_path)
-
-
 def _save_numpy_data(data: np.ndarray, data_name: str, bird_id: str, session: str, destination=None, make_parents=False,
                      verbose = False):
     # TODO: Add *Args to allow for identifier information to be appended to the name of the file
