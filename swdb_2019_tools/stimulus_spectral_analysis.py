@@ -1,12 +1,15 @@
-import os
 import numpy as np
 import matplotlib.pyplot as plt
-import pandas as pd
 from mtspec import mtspec
-from mtspec.util import _load_mtdatas
+from mtspec.util import _load_mtdata
 from functools import reduce
+from IPython.core.debugger import set_trace
 
-def psth_multitaper_spectrum(session_id,unit_ids, stimulus_presentation_id, W,time_step = 1/100, 
+'''
+PSTH_MULTITAPER_SPECTRUM requires installation of mtspec package. For installation, 
+follow instructions on https://krischer.github.io/mtspec/ 
+'''
+def psth_multitaper_spectrum(cache,session_id,unit_ids, stimulus_presentation_id, W,time_step = 1/100, 
                              temporal_frequency = None,orientation=None,phase=None,
                              spatial_frequency=None,show=True):
     '''
@@ -18,6 +21,7 @@ def psth_multitaper_spectrum(session_id,unit_ids, stimulus_presentation_id, W,ti
     
     
     INPUTS:
+        cache                         = Neuropixels data cache                        
         session_id                    = String, session_id of mouse
         unit_ids                      = Array, unit_ids
         stimulus_presentation_id      = String, simulus presentation name: e.g.'driftings_gratings' or 'spontaneous'..
@@ -40,6 +44,7 @@ def psth_multitaper_spectrum(session_id,unit_ids, stimulus_presentation_id, W,ti
     session = cache.get_session_data(session_id)
     stim_table = session.get_presentations_for_stimulus(stimulus_presentation_id)
     stim_ids = get_stimulus_ids(stim_table,stimulus_presentation_id,orientation,temporal_frequency,phase,spatial_frequency)
+    
     # Set power spectrum parameters
     duration = stim_table.duration.iloc[0]
     TW = int(duration * W)
@@ -48,7 +53,6 @@ def psth_multitaper_spectrum(session_id,unit_ids, stimulus_presentation_id, W,ti
     
     # Compute PSTH
     time_domain = np.arange(0,duration+time_step, time_step)
-
     histograms = session.presentationwise_spike_counts(bin_edges=time_domain, 
                                                    stimulus_presentation_ids=stim_ids, 
                                                    unit_ids=unit_ids)
@@ -56,8 +60,11 @@ def psth_multitaper_spectrum(session_id,unit_ids, stimulus_presentation_id, W,ti
     mean_histograms = histograms.mean(dim="stimulus_presentation_id")
     psth_trials = mean_histograms.values
     
+    # To get firing rate
+    psth_trials = psth_trials.mean(1)/time_step
+    
     # Compute power spectrum
-    Pxx, f, jackknife, _, _ = mtspec(data=psth_trials.mean(1),delta=time_step, time_bandwidth=TW,
+    Pxx, f, jackknife, _, _ = mtspec(data=psth_trials,delta=time_step, time_bandwidth=TW,
             number_of_tapers=number_of_tapers, statistics=True)
     
     # Plot if true and return power spectrum & frequencies up until Nyquist frequency
@@ -117,10 +124,12 @@ def get_stimulus_ids(stim_table,stimulus_presentation_id,orientation=None,tempor
             stim_ids = get_stim_ids_variable(stim_table.orientation,[orientation])  
     ##### ------------------DRIFTING GRATINGS -------------------------------
     elif stimulus_presentation_id == 'drifting_gratings':
+        
         if temporal_frequency is None:
             stim_ids1 = get_stim_ids_variable(stim_table.temporal_frequency,[1.0, 8.0, 15.0, 2.0, 4.0])
-        else:
+        else:  
             stim_ids1 = get_stim_ids_variable(stim_table.temporal_frequency,[temporal_frequency])
+
             
         if orientation is None:
             stim_ids2 = get_stim_ids_variable(stim_table.orientation,[90.0, 0.0, 135.0, 315.0, 225.0, 180.0, 270.0, 45.0])
@@ -167,6 +176,144 @@ def get_stim_ids_variable(stim_table_key,values):
     For example, if you want all orientations that are at 90 and 270 degrees:
        Run this line: get_stim_ids_variable(stim_table.orientation,[90,270])
     '''
-    stim_ids = stim_table_key.isin(values).index
-
+  
+    stim_table_boolean = stim_table_key.isin(values)
+    stim_ids = stim_table_key.loc[stim_table_boolean==True].index
     return stim_ids
+
+def get_good_units(session_units,SNR = 1,ISIV = 0.5, structure_acronym = None):
+    '''
+    GET_GOOD_UNITS outputs unit_ids above a SNR threshold and below an ISI violation
+    threshold.  If structure is specfied, then output is only for units in that 
+    brain structure.  Otherwise, all units are returned.
+    
+    INPUTS:
+        session_units     = Dataframe containing all the unit_ids for a given session.
+        SNR               = SNR threshold. Returns all units with SNR above threshold
+                             (Default = 1)
+        ISIV              = isi_violations threshold. Returns all units with isi_violations
+                            below threshold. (Default = 0.5)
+        structure_acronym = (Optional) String, for corresponding structure.
+        
+    RETURNS:
+        UNIT_IDS                 = unit IDs for all units in that region or session
+        FAST_SPIKING_UNIT_IDS    = unit IDs for all fast spiking units, identified
+                                   as units whose waveform duration is < 0.4
+        REGULAR_SPIKING_UNIT_IDS = unit IDs for all regular spiking units, identified
+                                   as units whose waveform duration is >= 0.4 
+        
+        
+    '''
+    if structure_acronym is None:
+        unit_ids_df = session_units[(session_units.snr>SNR)&(session_units.isi_violations<ISIV)]
+        unit_ids = unit_ids_df.index
+        cell_type_mask = unit_ids_df["waveform_duration"] < 0.4
+        fast_spiking_unit_ids    = unit_ids_df[cell_type_mask].index
+        regular_spiking_unit_ids = unit_ids_df[~(cell_type_mask)].index
+    else:
+        unit_ids_df = session_units[
+                (session_units.snr>SNR)\
+                & (session_units.isi_violations<ISIV)\
+                & (session_units.structure_acronym==structure_acronym)
+        ]
+        unit_ids = unit_ids_df.index
+        cell_type_mask = unit_ids_df["waveform_duration"] < 0.4
+        fast_spiking_unit_ids    = unit_ids_df[cell_type_mask].index
+        regular_spiking_unit_ids = unit_ids_df[~(cell_type_mask)].index
+        
+    return unit_ids, fast_spiking_unit_ids, regular_spiking_unit_ids
+
+def get_good_units_df(session_units,SNR = 1,ISIV = 0.5, structure_acronym = None):
+    '''
+    GET_GOOD_UNITS outputs unit dataframes for units above a SNR threshold and
+    below an ISI violation threshold.  If structure is specfied, then output is 
+    only for units in that brain structure.  Otherwise, all units are returned.
+    
+    INPUTS:
+        session_units     = Dataframe containing all the unit_ids for a given session.
+        SNR               = SNR threshold. Returns all units with SNR above threshold
+                             (Default = 1)
+        ISIV              = isi_violations threshold. Returns all units with isi_violations
+                            below threshold. (Default = 0.5)
+        structure_acronym = (Optional) String, for corresponding structure.
+        
+    RETURNS:
+        UNIT_IDS_DF             = dataframe for all units in that region or session
+        FAST_SPIKING_UNIT_DF    = dataframe for all fast spiking units, identified
+                                   as units whose waveform duration is < 0.4
+        REGULAR_SPIKING_UNIT_DF = dataframe for all regular spiking units, identified
+                                   as units whose waveform duration is >= 0.4 
+        
+        
+    '''
+    if structure_acronym is None:
+        unit_ids_df = session_units[(session_units.snr>SNR)&(session_units.isi_violations<ISIV)]
+        cell_type_mask = unit_ids_df["waveform_duration"] < 0.4
+        fast_spiking_unit_df    = unit_ids_df[cell_type_mask]
+        regular_spiking_unit_df = unit_ids_df[~(cell_type_mask)]
+    else:
+        unit_ids_df = session_units[
+                (session_units.snr>SNR)\
+                & (session_units.isi_violations<ISIV)\
+                & (session_units.structure_acronym==structure_acronym)
+        ]
+
+        cell_type_mask = unit_ids_df["waveform_duration"] < 0.4
+        fast_spiking_unit_df    = unit_ids_df[cell_type_mask]
+        regular_spiking_unit_df = unit_ids_df[~(cell_type_mask)]
+        
+    return unit_ids_df, fast_spiking_unit_df, regular_spiking_unit_df
+
+def psth_average(cache,session_id,unit_ids, stimulus_presentation_id, time_step = 1/100, 
+                             temporal_frequency = None,orientation=None,phase=None,
+                             spatial_frequency=None,show=True):
+    '''
+    PSTH_MULTITAPER_SPECTRUM computes the power spectrum for the peristimulus time histogram (PSTH) of an experiment 
+    for a given mouse  using the multitaper method.  The PSTH is averaged over units and for each presentation of 
+    the stimulus. The number of tapers is calculated using the recommended rule of thumb, 2 * T * W - 1, 
+    where T is the duration of the stimulus presentation and W is the frequency resolution.  95% 
+    confidence intervals are computed by using the jackknife method . 
+    
+    
+    INPUTS:
+        cache                         = Neuropixels data cache                        
+        session_id                    = String, session_id of mouse
+        unit_ids                      = Array, unit_ids
+        stimulus_presentation_id      = String, simulus presentation name: e.g.'driftings_gratings' or 'spontaneous'..
+        W                             = desired frequency resolution
+        time_step                     = bin size for computing PSTH (default is 1/100)
+        temporal_frequency (optional) = If not included, all possible temporal frequencies are included.
+        orientation (optional)        = If not included, all possible orientations are included.
+        phase (optional)              = If not included, all possible phases are included.
+        spatial_frequency (optional)  = If not included, all possible spatial_frequencies are included.
+        show                          = Boolean, signals whether to plot (default is True)
+    
+    RETURNS: 
+        Pxx              = np array power up until Nyquist frequency
+        f                = np array corresponding frequency axis
+        jackknife        = np array corresponding error bars
+        number_of_tapers = number of tapers used to computer the power spectrum
+    
+    '''
+    # Get session and stimulus information
+    session = cache.get_session_data(session_id)
+    stim_table = session.get_presentations_for_stimulus(stimulus_presentation_id)
+    stim_ids = get_stimulus_ids(stim_table,stimulus_presentation_id,orientation,temporal_frequency,phase,spatial_frequency)
+    
+    # Compute PSTH
+    duration = stim_table.duration.iloc[0]
+    time_domain = np.arange(0,duration+time_step, time_step)
+    histograms = session.presentationwise_spike_counts(bin_edges=time_domain, 
+                                                   stimulus_presentation_ids=stim_ids, 
+                                                   unit_ids=unit_ids)
+    
+    mean_histograms = histograms.mean(dim="stimulus_presentation_id")
+    psth_trials = mean_histograms.values/time_step
+    
+    # To get firing rate
+    psth_trials_mean = psth_trials.mean(1)
+    
+    return psth_trials_mean, psth_trials, time_domain
+    
+
+
