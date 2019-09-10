@@ -34,6 +34,7 @@ from allensdk.brain_observatory.ecephys import ecephys_session
 # fix slow autocomplete
 %config Completer.use_jedi = False
 
+
 #Set path to cache
 import platform
 platstring = platform.platform()
@@ -53,6 +54,7 @@ else:
     data_root = "/media/$USERNAME/Brain2019/"
 
 manifest_path = os.path.join(data_root, "dynamic-brain-workshop/visual_coding_neuropixels/2019/manifest.json")
+
 
 #Get cache and info about all the sessions
 cache = EcephysProjectCache.fixed(manifest=manifest_path)
@@ -102,6 +104,13 @@ def get_all_timeseries_to_df(sessionIDs = [], regions = [], datatype = "both"):
 
     will return the lfp and spike data for every channel recorded in VISp in the first 2 sessions listed in the sessions dataframe
     """
+
+    #Get cache and info about all the sessions
+    cache = EcephysProjectCache.fixed(manifest=manifest_path)
+    sessions = cache.get_sessions()
+    allchannelsinfo = cache.get_channels()
+    allunitsinfo = cache.get_units()
+
     #If no session ID is passed into the list, find all sessions that contain the regions
     #and append that session ID to the sessionIDs list
     if len(sessionIDs) == 0:
