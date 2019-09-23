@@ -175,7 +175,7 @@ def get_null_cv_samples(angles, responses, n_samples=1000,
     assert response_dist in ['fixed', 'boot', 'perm']
     assert not all([angle_dist == 'fixed', response_dist == 'fixed'])
 
-    n_samples = len(responses)
+    # n_samples = len(responses)
 
     def sample():
         if angle_dist == 'fixed':
